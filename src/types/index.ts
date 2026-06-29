@@ -91,3 +91,40 @@ export interface ProvStatus {
   error?: string
   duration_sec?: number
 }
+
+export interface ScenarioSummary {
+  id: string
+  name: string
+  serial: string
+  valid_from?: string
+  valid_until?: string
+}
+
+export interface ScenarioListResponse {
+  serial: string
+  items: ScenarioSummary[]
+}
+
+export interface ScenarioFiles {
+  scenario_yaml: string
+  variables_yaml: string
+}
+
+export interface ScenarioStatus {
+  serial: string
+  scenario_id: string
+  active: boolean
+  current_step?: string
+  next_step?: string
+  steps_done_today?: string[]
+  checked_at: string
+  timezone?: string
+}
+
+export interface ScenarioGenerateResponse extends ScenarioFiles {
+  warnings?: string[]
+}
+
+export interface ScenarioLogsResponse {
+  logs: string
+}

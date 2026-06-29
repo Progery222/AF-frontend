@@ -79,6 +79,12 @@ export const orch = {
       body: body != null ? JSON.stringify(body) : undefined,
     }),
 
+  put: <T>(path: string, body?: unknown) =>
+    request<T>(ORCH_BASE, path, {
+      method: 'PUT',
+      body: body != null ? JSON.stringify(body) : undefined,
+    }),
+
   delete: <T>(path: string) => request<T>(ORCH_BASE, path, { method: 'DELETE' }),
 
   patch: <T>(path: string, body?: unknown) =>

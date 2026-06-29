@@ -6,6 +6,11 @@ import type {
   PhonesResponse,
   ProvStatus,
   ReadyResponse,
+  ScenarioFiles,
+  ScenarioGenerateResponse,
+  ScenarioListResponse,
+  ScenarioLogsResponse,
+  ScenarioStatus,
   ScreenResult,
   VideoJob,
 } from '@/types'
@@ -70,6 +75,31 @@ export const api = {
 
   getProvStatus: (serial: string) =>
     prov.get<ProvStatus>(`/status?serial=${encodeURIComponent(serial)}`),
+
+  listScenarios: (serial: string) =>
+    orch.get<ScenarioListResponse>(phonePath(serial, '/scenarios')),
+
+  getScenario: (serial: string, scenarioId: string) =>
+    orch.get<ScenarioFiles>(phonePath(serial, `/scenarios/${encodeURIComponent(scenarioId)}`)),
+
+  putScenario: (serial: string, scenarioId: string, files: ScenarioFiles) =>
+    orch.put<{ message: string }>(phonePath(serial, `/scenarios/${encodeURIComponent(scenarioId)}`), files),
+
+  deleteScenario: (serial: string, scenarioId: string) =>
+    orch.delete<{ message: string }>(phonePath(serial, `/scenarios/${encodeURIComponent(scenarioId)}`)),
+
+  getScenarioStatus: (serial: string, scenarioId: string) =>
+    orch.get<ScenarioStatus>(phonePath(serial, `/scenarios/${encodeURIComponent(scenarioId)}/status`)),
+
+  getScenarioLogs: (serial: string, scenarioId: string, date?: string) => {
+    const q = date ? `?date=${encodeURIComponent(date)}` : ''
+    return orch.get<ScenarioLogsResponse>(
+      phonePath(serial, `/scenarios/${encodeURIComponent(scenarioId)}/logs${q}`),
+    )
+  },
+
+  generateScenario: (serial: string, prompt: string) =>
+    orch.post<ScenarioGenerateResponse>(phonePath(serial, '/scenarios/generate'), { prompt }),
 }
 
 export function videoJobReady(status: string): boolean {

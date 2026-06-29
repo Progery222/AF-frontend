@@ -12,6 +12,7 @@ import {
   GitBranch,
   Gamepad2,
   AppWindow,
+  CalendarClock,
   LogOut,
 } from 'lucide-react'
 import { clearAuth } from '@/lib/auth'
@@ -29,6 +30,7 @@ const NAV = [
   { to: '/screen', label: 'Экран', icon: Monitor },
   { to: '/content', label: 'Контент', icon: FolderOpen },
   { to: '/video', label: 'Видео', icon: Film },
+  { to: '/scenarios', label: 'Сценарии', icon: CalendarClock },
   { to: '/fsm', label: 'FSM', icon: GitBranch },
   { to: '/controls', label: 'Управление', icon: Gamepad2 },
   { to: '/app', label: 'Приложение', icon: AppWindow },

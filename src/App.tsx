@@ -12,6 +12,7 @@ import { ScreenPage } from '@/pages/Screen'
 import { ContentPage } from '@/pages/Content'
 import { VideoPage } from '@/pages/Video'
 import { FSMPage } from '@/pages/FSM'
+import { ScenariosPage } from '@/pages/Scenarios'
 import { ControlsPage, AppPage } from '@/pages/Controls'
 
 export default function App() {
@@ -45,6 +46,7 @@ function AppRoutes() {
           <Route path="/screen" element={<ScreenPage />} />
           <Route path="/content" element={<ContentPage />} />
           <Route path="/video" element={<VideoPage />} />
+          <Route path="/scenarios" element={<ScenariosPage />} />
           <Route path="/fsm" element={<FSMPage />} />
           <Route path="/controls" element={<ControlsPage />} />
           <Route path="/app" element={<AppPage />} />
