@@ -31,9 +31,9 @@ const NAV = [
   { to: '/content', label: 'Контент', icon: FolderOpen },
   { to: '/video', label: 'Видео', icon: Film },
   { to: '/scenarios', label: 'Сценарии', icon: CalendarClock },
+  { to: '/apps', label: 'Приложения', icon: AppWindow },
   { to: '/fsm', label: 'FSM', icon: GitBranch },
   { to: '/controls', label: 'Управление', icon: Gamepad2 },
-  { to: '/app', label: 'Приложение', icon: AppWindow },
 ]
 
 export function Sidebar() {

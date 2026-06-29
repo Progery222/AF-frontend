@@ -13,7 +13,8 @@ import { ContentPage } from '@/pages/Content'
 import { VideoPage } from '@/pages/Video'
 import { FSMPage } from '@/pages/FSM'
 import { ScenariosPage } from '@/pages/Scenarios'
-import { ControlsPage, AppPage } from '@/pages/Controls'
+import { ControlsPage } from '@/pages/Controls'
+import { AppsPage } from '@/pages/Apps'
 
 export default function App() {
   return (
@@ -49,7 +50,8 @@ function AppRoutes() {
           <Route path="/scenarios" element={<ScenariosPage />} />
           <Route path="/fsm" element={<FSMPage />} />
           <Route path="/controls" element={<ControlsPage />} />
-          <Route path="/app" element={<AppPage />} />
+          <Route path="/apps" element={<AppsPage />} />
+          <Route path="/app" element={<Navigate to="/apps" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
   )

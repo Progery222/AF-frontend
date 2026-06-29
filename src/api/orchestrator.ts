@@ -3,6 +3,8 @@ import type {
   ContentListResponse,
   FarmStats,
   Phone,
+  PhoneAppActionResponse,
+  PhoneAppsResponse,
   PhonesResponse,
   ProvStatus,
   ReadyResponse,
@@ -100,6 +102,15 @@ export const api = {
 
   generateScenario: (serial: string, prompt: string) =>
     orch.post<ScenarioGenerateResponse>(phonePath(serial, '/scenarios/generate'), { prompt }),
+
+  listApps: (serial: string) =>
+    orch.get<PhoneAppsResponse>(phonePath(serial, '/apps')),
+
+  openApp: (serial: string, pkg: string) =>
+    orch.post<PhoneAppActionResponse>(phonePath(serial, '/apps/open'), { package: pkg }),
+
+  closeApp: (serial: string, pkg: string) =>
+    orch.post<PhoneAppActionResponse>(phonePath(serial, '/apps/close'), { package: pkg }),
 }
 
 export function videoJobReady(status: string): boolean {

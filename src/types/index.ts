@@ -128,3 +128,22 @@ export interface ScenarioGenerateResponse extends ScenarioFiles {
 export interface ScenarioLogsResponse {
   logs: string
 }
+
+export interface PhoneApp {
+  id: string
+  name: string
+  package: string
+  category: 'social' | 'system'
+}
+
+export interface PhoneAppsResponse {
+  serial: string
+  social: PhoneApp[]
+  system: PhoneApp[]
+}
+
+export interface PhoneAppActionResponse {
+  serial: string
+  package: string
+  status: 'opened' | 'closed'
+}

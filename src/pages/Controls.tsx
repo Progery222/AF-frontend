@@ -62,12 +62,3 @@ export function ControlsPage() {
     />
   )
 }
-
-export function AppPage() {
-  return (
-    <KeyPanel
-      title="Приложение"
-      description="Навигация: Домой, Назад, список недавних приложений"
-    />
-  )
-}
