@@ -175,3 +175,7 @@ AF-frontend/
 | [AF-phone-provisioner](../AF-phone-provisioner/README.MD) | Статус provision |
 | [AF-phone-observer](../AF-phone-observer/README.md) | Скрины (через orchestrator) |
 | [AF-tg-admin-bot](../AF-tg-admin-bot/README.md) | Telegram-аналог тех же операций |
+
+## Репозиторий
+
+https://github.com/Progery222/AF-frontend — ветка `main`.
