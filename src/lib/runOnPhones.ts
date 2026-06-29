@@ -3,14 +3,14 @@ import { authHeader, loadAuth } from '@/lib/auth'
 const BULK_BASE = import.meta.env.VITE_BULK_API ?? '/api/bulk'
 
 export interface BulkOrchAction {
-  method: 'GET' | 'POST' | 'DELETE'
+  method: 'GET' | 'POST' | 'DELETE' | 'PATCH'
   suffix: string
   body?: unknown
 }
 
 export interface BulkItem {
   serial: string
-  method?: 'GET' | 'POST' | 'DELETE'
+  method?: 'GET' | 'POST' | 'DELETE' | 'PATCH'
   suffix?: string
   body?: unknown
   steps?: BulkOrchAction[]
@@ -138,29 +138,4 @@ export function formatBulkToast(label: string, result: BulkResult): { message: s
     }
   }
   return { message: `${label}: ошибка на всех ${result.total}`, type: 'error' }
-}
-
-/** @deprecated Используйте executeBulk — браузер сериализует fetch по лимиту соединений. */
-export async function runOnPhones(
-  serials: string[],
-  fn: (serial: string) => Promise<unknown>,
-): Promise<BulkResult> {
-  const results = await Promise.allSettled(serials.map((serial) => fn(serial)))
-  const failed: BulkResult['failed'] = []
-
-  results.forEach((result, index) => {
-    if (result.status === 'rejected') {
-      const reason = result.reason
-      failed.push({
-        serial: serials[index],
-        error: reason instanceof Error ? reason.message : String(reason),
-      })
-    }
-  })
-
-  return {
-    ok: results.length - failed.length,
-    failed,
-    total: serials.length,
-  }
 }

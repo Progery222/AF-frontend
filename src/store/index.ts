@@ -102,10 +102,6 @@ interface ScreenshotQueueState {
   count: (serial: string) => number
 }
 
-function queueKey(serial: string) {
-  return serial
-}
-
 export const useScreenshotQueue = create<ScreenshotQueueState>()(
   persist(
     (set, get) => ({
@@ -113,21 +109,20 @@ export const useScreenshotQueue = create<ScreenshotQueueState>()(
 
       addScreenshot: (serial, minioKey, screenshotUrl) => {
         if (!minioKey) return
-        const key = queueKey(serial)
         set((state) => {
-          const existing = state.queues[key] ?? []
+          const existing = state.queues[serial] ?? []
           if (existing.some((e) => e.minioKey === minioKey)) return state
           return {
             queues: {
               ...state.queues,
-              [key]: [...existing, { minioKey, screenshotUrl, addedAt: Date.now() }],
+              [serial]: [...existing, { minioKey, screenshotUrl, addedAt: Date.now() }],
             },
           }
         })
       },
 
       snapshot: (serial) => {
-        const items = get().queues[queueKey(serial)] ?? []
+        const items = get().queues[serial] ?? []
         return items.map((e) => e.minioKey)
       },
 
@@ -138,14 +133,13 @@ export const useScreenshotQueue = create<ScreenshotQueueState>()(
       },
 
       clear: (serial) => {
-        const key = queueKey(serial)
         set((state) => {
-          const { [key]: _, ...rest } = state.queues
+          const { [serial]: _, ...rest } = state.queues
           return { queues: rest }
         })
       },
 
-      count: (serial) => (get().queues[queueKey(serial)] ?? []).length,
+      count: (serial) => (get().queues[serial] ?? []).length,
     }),
     { name: 'af-screenshot-queue' },
   ),

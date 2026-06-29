@@ -2,10 +2,6 @@ import { Link } from 'react-router-dom'
 import { Smartphone } from 'lucide-react'
 import { ActionButton } from './ActionButton'
 
-export function RequirePhone({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
-}
-
 export function NoPhoneSelected() {
   return (
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface-2 py-16 px-6 text-center">

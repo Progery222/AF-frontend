@@ -26,6 +26,9 @@ export function useBulkAction() {
       const { message, type } = formatBulkToast(successLabel, result)
       toast(message, type)
       return result
+    } catch (e) {
+      toast((e as Error).message, 'error')
+      return null
     } finally {
       setLoading(null)
     }
@@ -44,6 +47,9 @@ export function useBulkAction() {
       const { message, type } = formatBulkToast(successLabel, result)
       toast(message, type)
       return result
+    } catch (e) {
+      toast((e as Error).message, 'error')
+      return null
     } finally {
       setLoading(null)
     }

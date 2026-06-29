@@ -149,7 +149,7 @@ AF-frontend/
 ├── src/
 │   ├── api/           — клиент orchestrator / provisioner
 │   ├── components/    — UI, LivePreviewColumn, PhoneScreenPreview
-│   ├── hooks/         — useLivePreviewTargets, bulk helpers
+│   ├── hooks/         — useLivePreviewTargets, useBulkAction
 │   ├── lib/           — auth, phoneSort, runOnPhones (bulk)
 │   ├── pages/         — маршруты SPA
 │   └── store/         — Zustand (выбор телефонов, превью)

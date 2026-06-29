@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/api/orchestrator'
+import { filterProductionPhones } from '@/lib/phoneSort'
 import { usePhoneStore } from '@/store'
 
 export function useTargetPhones() {
@@ -11,11 +12,11 @@ export function useTargetPhones() {
     queryFn: api.getPhones,
   })
 
-  const phones = data?.phones ?? []
+  const phones = filterProductionPhones(data?.phones ?? [])
 
   const serials = selectAll
     ? phones.map((p) => p.serial)
-    : selectedSerials
+    : selectedSerials.filter((s) => phones.some((p) => p.serial === s))
 
   const hasSelection = serials.length > 0
   const isMulti = selectAll || selectedSerials.length > 1

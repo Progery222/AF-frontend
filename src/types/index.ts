@@ -55,11 +55,6 @@ export interface ScreenResult {
   resolution?: { width: number; height: number }
 }
 
-export interface ActionResult {
-  serial: string
-  result: Record<string, unknown>
-}
-
 export interface ContentItem {
   content_id: string
   object_key: string
@@ -95,10 +90,4 @@ export interface ProvStatus {
   steps?: Record<string, unknown>
   error?: string
   duration_sec?: number
-}
-
-export interface ApiMessage {
-  status?: string
-  message?: string
-  error?: string
 }

@@ -4,9 +4,9 @@ const BUCKETS = ['af-screenshots', 'af-videos', 'af-content'] as const
 
 /** Кодирует сегменты пути MinIO (serial вида 10.0.0.1:5555 ломает URL без %3A). */
 function encodeObjectPath(path: string): string {
-  const parts = path.replace(/^\/+/, '').split('/')
+  const parts = path.replace(/^\/+/, '').split('/').filter(Boolean)
   if (parts.length === 0) return ''
-  return parts.map((segment, index) => (index === 0 ? segment : encodeURIComponent(segment))).join('/')
+  return parts.map((segment) => encodeURIComponent(segment)).join('/')
 }
 
 function toMinioProxyPath(objectPath: string): string {

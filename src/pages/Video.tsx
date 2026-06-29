@@ -56,7 +56,6 @@ export function VideoPage() {
           width: 1080,
           height: 1920,
           frame_sec: frameSec,
-          transition_sec: 1,
         })
         setJob(j)
         if (j.id) {
@@ -85,7 +84,6 @@ export function VideoPage() {
               width: 1080,
               height: 1920,
               frame_sec: frameSec,
-              transition_sec: 1,
             },
           },
         })

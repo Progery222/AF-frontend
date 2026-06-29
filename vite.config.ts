@@ -102,6 +102,59 @@ async function handleBulkOrch(body: {
   return { ok, total: items.length, failed, results: body.include_results ? results : undefined }
 }
 
+function minioObjectPath(key: string): string {
+  const trimmed = key.replace(/^af-screenshots\//, '')
+  return trimmed
+    .split('/')
+    .filter(Boolean)
+    .map((part) => encodeURIComponent(part))
+    .join('/')
+}
+
+function minioInternalURL(minioKey?: string, screenshotURL?: string): string {
+  const base = minioTarget.replace(/\/$/, '')
+  if (minioKey?.startsWith('noop://') || screenshotURL?.startsWith('noop://')) {
+    throw new Error('screenshot storage unavailable')
+  }
+  if (minioKey) {
+    return `${base}/af-screenshots/${minioObjectPath(minioKey)}`
+  }
+  if (!screenshotURL) {
+    throw new Error('no screenshot reference')
+  }
+  if (screenshotURL.startsWith('http://') || screenshotURL.startsWith('https://')) {
+    const url = new URL(screenshotURL)
+    return `${base}${url.pathname}`
+  }
+  if (screenshotURL.startsWith('af-screenshots/')) {
+    return `${base}/${screenshotURL}`
+  }
+  return `${base}/af-screenshots/${minioObjectPath(screenshotURL)}`
+}
+
+async function handleBulkPreview(serial: string) {
+  const screen = (await orchFetch(orchTarget, {
+    serial,
+    method: 'GET',
+    suffix: '/screen?timeout_sec=15',
+  })) as {
+    minio_key?: string
+    screenshot_url?: string
+    resolution?: { width: number; height: number }
+  }
+
+  const imgURL = minioInternalURL(screen.minio_key, screen.screenshot_url)
+  const imgRes = await fetch(imgURL)
+  if (!imgRes.ok) {
+    throw new Error(await imgRes.text().catch(() => imgRes.statusText))
+  }
+  return {
+    body: Buffer.from(await imgRes.arrayBuffer()),
+    contentType: imgRes.headers.get('Content-Type') ?? 'image/png',
+    resolution: screen.resolution,
+  }
+}
+
 function checkBasicAuth(req: import('http').IncomingMessage): boolean {
   const header = req.headers.authorization
   if (!header?.startsWith('Basic ')) return false
@@ -116,7 +169,9 @@ function devAuthPlugin() {
     name: 'dev-basic-auth',
     configureServer(server: import('vite').ViteDevServer) {
       server.middlewares.use(async (req, res, next) => {
-        if (req.url === '/api/bulk/orch' && req.method === 'POST') {
+        const urlPath = req.url?.split('?')[0] ?? ''
+
+        if (urlPath === '/api/bulk/orch' && req.method === 'POST') {
           if (!checkBasicAuth(req)) {
             res.statusCode = 401
             res.setHeader('Content-Type', 'application/json')
@@ -137,6 +192,38 @@ function devAuthPlugin() {
               res.end(JSON.stringify({ error: (e as Error).message }))
             }
           })
+          return
+        }
+
+        if (urlPath.startsWith('/api/bulk/preview/') && req.method === 'GET') {
+          if (!checkBasicAuth(req)) {
+            res.statusCode = 401
+            res.setHeader('Content-Type', 'application/json')
+            res.end('{"error":"unauthorized"}')
+            return
+          }
+          const serial = decodeURIComponent(urlPath.slice('/api/bulk/preview/'.length))
+          if (!serial.trim()) {
+            res.statusCode = 400
+            res.setHeader('Content-Type', 'application/json')
+            res.end('{"error":"serial required"}')
+            return
+          }
+          try {
+            const preview = await handleBulkPreview(serial)
+            res.statusCode = 200
+            res.setHeader('Content-Type', preview.contentType)
+            res.setHeader('Cache-Control', 'no-store')
+            if (preview.resolution?.width && preview.resolution?.height) {
+              res.setHeader('X-Screen-Width', String(preview.resolution.width))
+              res.setHeader('X-Screen-Height', String(preview.resolution.height))
+            }
+            res.end(preview.body)
+          } catch (e) {
+            res.statusCode = 502
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ error: (e as Error).message }))
+          }
           return
         }
 

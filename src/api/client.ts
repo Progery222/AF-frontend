@@ -2,7 +2,6 @@ import { authHeader, clearAuth, loadAuth } from '@/lib/auth'
 
 const ORCH_BASE = import.meta.env.VITE_ORCH_API ?? '/api/orch'
 const PROV_BASE = import.meta.env.VITE_PROV_API ?? '/api/prov'
-const MINIO_BASE = import.meta.env.VITE_MINIO_API ?? '/api/minio'
 
 export class ApiError extends Error {
   constructor(
@@ -92,15 +91,9 @@ export const prov = {
   get: <T>(path: string) => request<T>(PROV_BASE, path, { method: 'GET' }),
 }
 
-export const minio = {
-  get: <T>(path: string) => request<T>(MINIO_BASE, path, { method: 'GET' }),
-}
-
-export { MINIO_BASE, ORCH_BASE }
-
 export async function orchRequest(
   serial: string,
-  action: { method: 'GET' | 'POST' | 'DELETE'; suffix: string; body?: unknown },
+  action: { method: 'GET' | 'POST' | 'DELETE' | 'PATCH'; suffix: string; body?: unknown },
   timeoutMs?: number,
 ): Promise<void> {
   const path = phonePath(serial, action.suffix)

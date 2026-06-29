@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/api/orchestrator'
+import { filterProductionPhones } from '@/lib/phoneSort'
 import { usePhoneStore } from '@/store'
 import { StateBadge } from './StateBadge'
 import { Smartphone, X, Users } from 'lucide-react'
@@ -15,8 +16,8 @@ export function PhoneSelector() {
     enabled: selectAll || selectedSerials.length > 0,
   })
 
-  const phones = data?.phones ?? []
-  const total = data?.total ?? phones.length
+  const phones = filterProductionPhones(data?.phones ?? [])
+  const total = phones.length
   const hasSelection = selectAll || selectedSerials.length > 0
 
   if (!hasSelection) {
