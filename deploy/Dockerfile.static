@@ -1,0 +1,23 @@
+FROM golang:1.25-alpine AS bulk-build
+WORKDIR /src
+COPY deploy/bulk-proxy/go.mod deploy/bulk-proxy/main.go ./
+RUN go build -trimpath -ldflags="-s -w" -o /bulk-proxy .
+
+FROM alpine:3.21
+RUN apk add --no-cache nginx wget
+COPY --from=bulk-build /bulk-proxy /usr/local/bin/bulk-proxy
+COPY deploy/nginx.conf /etc/nginx/http.d/default.conf
+COPY deploy/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && mkdir -p /usr/share/nginx/html /run/nginx
+ARG DIST_CACHEBUST=0
+RUN echo "dist cache bust: ${DIST_CACHEBUST}"
+COPY dist /usr/share/nginx/html
+EXPOSE 80
+ENV FRONTEND_AUTH_USER=admin
+ENV FRONTEND_AUTH_PASSWORD=af-admin
+ENV ORCH_HTTP=http://phone-orchestrator:9090
+ENV MINIO_HTTP=http://minio:9000
+ENV BULK_LISTEN=:8081
+ENV BULK_MAX_CONCURRENCY=64
+ENV BULK_TIMEOUT_SEC=120
+ENTRYPOINT ["/entrypoint.sh"]
