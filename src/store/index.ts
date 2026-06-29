@@ -1,17 +1,25 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export interface CachedScreenSize {
+  width: number
+  height: number
+}
+
 interface PhoneState {
   selectedSerials: string[]
   selectAll: boolean
   livePreviewEnabled: boolean
   livePreviewThumbHeight: number
+  screenSizeBySerial: Record<string, CachedScreenSize>
   toggleSerial: (serial: string, allSerials?: string[]) => void
   setSelectAll: (value: boolean) => void
   clearSelection: () => void
   setLivePreviewEnabled: (value: boolean) => void
   setLivePreviewThumbHeight: (value: number) => void
+  setScreenSize: (serial: string, width: number, height: number) => void
   isSelected: (serial: string) => boolean
+  pruneSelectedSerials: (validSerials: string[]) => void
 }
 
 export const usePhoneStore = create<PhoneState>()(
@@ -21,6 +29,7 @@ export const usePhoneStore = create<PhoneState>()(
       selectAll: false,
       livePreviewEnabled: false,
       livePreviewThumbHeight: 400,
+      screenSizeBySerial: {},
 
       toggleSerial: (serial, allSerials) =>
         set((state) => {
@@ -51,6 +60,26 @@ export const usePhoneStore = create<PhoneState>()(
       setLivePreviewThumbHeight: (value) =>
         set({ livePreviewThumbHeight: Math.min(560, Math.max(280, value)) }),
 
+      setScreenSize: (serial, width, height) => {
+        if (width <= 0 || height <= 0) return
+        set((state) => ({
+          screenSizeBySerial: {
+            ...state.screenSizeBySerial,
+            [serial]: { width, height },
+          },
+        }))
+      },
+
+      pruneSelectedSerials: (validSerials) => {
+        const valid = new Set(validSerials)
+        set((state) => {
+          if (state.selectAll) return state
+          const pruned = state.selectedSerials.filter((s) => valid.has(s))
+          if (pruned.length === state.selectedSerials.length) return state
+          return { selectedSerials: pruned }
+        })
+      },
+
       isSelected: (serial) => {
         const state = get()
         return state.selectAll || state.selectedSerials.includes(serial)
@@ -58,9 +87,12 @@ export const usePhoneStore = create<PhoneState>()(
     }),
     {
       name: 'af-selected-phone',
-      version: 3,
+      version: 4,
       migrate: (persisted, fromVersion) => {
         const state = persisted as Record<string, unknown>
+        if (fromVersion < 4 && state.screenSizeBySerial == null) {
+          state.screenSizeBySerial = {}
+        }
         if (fromVersion < 1) {
           if (Array.isArray(state.selectedSerials)) return persisted
           const legacy = state.selectedSerial as string | null | undefined

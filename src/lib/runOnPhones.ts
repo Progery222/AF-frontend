@@ -128,12 +128,13 @@ export async function executeBulkItems(
 }
 
 export function formatBulkToast(label: string, result: BulkResult): { message: string; type: 'success' | 'error' } {
-  if (result.failed.length === 0) {
+  const failed = result.failed ?? []
+  if (failed.length === 0) {
     return { message: `${label}: ${result.ok}/${result.total}`, type: 'success' }
   }
   if (result.ok > 0) {
     return {
-      message: `${label}: ${result.ok}/${result.total}, ошибок ${result.failed.length}`,
+      message: `${label}: ${result.ok}/${result.total}, ошибок ${failed.length}`,
       type: 'error',
     }
   }

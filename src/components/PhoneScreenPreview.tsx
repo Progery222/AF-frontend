@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { loadAuth, authHeader } from '@/lib/auth'
+import { usePhoneStore } from '@/store'
 import { ImageOff, Loader2 } from 'lucide-react'
 
 const BULK_BASE = import.meta.env.VITE_BULK_API ?? '/api/bulk'
@@ -13,7 +14,9 @@ function serialStaggerMs(serial: string, intervalMs: number): number {
   return hash % intervalMs
 }
 
-async function fetchPreviewBlob(serial: string): Promise<Blob> {
+async function fetchPreviewBlob(
+  serial: string,
+): Promise<{ blob: Blob; width?: number; height?: number }> {
   const url = `${BULK_BASE}/preview/${encodeURIComponent(serial)}?t=${Date.now()}`
   const res = await fetch(url, { headers: authHeader(loadAuth()) })
   if (!res.ok) {
@@ -24,7 +27,13 @@ async function fetchPreviewBlob(serial: string): Promise<Blob> {
     }
     throw new Error((await res.text()) || res.statusText)
   }
-  return res.blob()
+  const width = Number(res.headers.get('X-Screen-Width') ?? 0)
+  const height = Number(res.headers.get('X-Screen-Height') ?? 0)
+  return {
+    blob: await res.blob(),
+    width: width > 0 ? width : undefined,
+    height: height > 0 ? height : undefined,
+  }
 }
 
 function decodeBlobUrl(blob: Blob): Promise<string> {
@@ -55,6 +64,7 @@ export const PhoneScreenPreview = memo(function PhoneScreenPreview({
   widthPx,
   className = '',
 }: PhoneScreenPreviewProps) {
+  const setScreenSize = usePhoneStore((s) => s.setScreenSize)
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [initialLoad, setInitialLoad] = useState(true)
@@ -77,8 +87,11 @@ export const PhoneScreenPreview = memo(function PhoneScreenPreview({
 
   const loadPreview = useCallback(async () => {
     try {
-      const blob = await fetchPreviewBlob(serial)
-      const objectUrl = await decodeBlobUrl(blob)
+      const preview = await fetchPreviewBlob(serial)
+      if (preview.width && preview.height) {
+        setScreenSize(serial, preview.width, preview.height)
+      }
+      const objectUrl = await decodeBlobUrl(preview.blob)
       setBlobUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev)
         return objectUrl
@@ -90,7 +103,7 @@ export const PhoneScreenPreview = memo(function PhoneScreenPreview({
     } finally {
       setInitialLoad(false)
     }
-  }, [serial])
+  }, [serial, setScreenSize])
 
   useEffect(() => {
     if (!enabled) return

@@ -19,7 +19,10 @@ export function useBulkAction() {
     action: BulkOrchAction,
     successLabel: string,
   ) => {
-    if (!targets.hasSelection) return null
+    if (!targets.hasSelection) {
+      toast('Нет доступных телефонов для действия', 'error')
+      return null
+    }
     setLoading(id)
     try {
       const result = await executeBulk(targets.serials, action)
@@ -40,7 +43,10 @@ export function useBulkAction() {
     successLabel: string,
     options?: { includeResults?: boolean },
   ) => {
-    if (!targets.hasSelection) return null
+    if (!targets.hasSelection || items.length === 0) {
+      toast('Нет доступных телефонов для действия', 'error')
+      return null
+    }
     setLoading(id)
     try {
       const result = await executeBulkItems(items, options)
