@@ -2,6 +2,7 @@ import { authHeader, clearAuth, loadAuth } from '@/lib/auth'
 
 const ORCH_BASE = import.meta.env.VITE_ORCH_API ?? '/api/orch'
 const PROV_BASE = import.meta.env.VITE_PROV_API ?? '/api/prov'
+const BEHAVIOR_BASE = import.meta.env.VITE_BEHAVIOR_API ?? '/api/behavior'
 
 export class ApiError extends Error {
   constructor(
@@ -89,6 +90,17 @@ export const orch = {
 
 export const prov = {
   get: <T>(path: string) => request<T>(PROV_BASE, path, { method: 'GET' }),
+}
+
+export const behavior = {
+  get: <T>(path: string, timeoutMs?: number) =>
+    request<T>(BEHAVIOR_BASE, path, { method: 'GET', timeoutMs }),
+
+  post: <T>(path: string, body?: unknown) =>
+    request<T>(BEHAVIOR_BASE, path, {
+      method: 'POST',
+      body: body != null ? JSON.stringify(body) : undefined,
+    }),
 }
 
 export async function orchRequest(

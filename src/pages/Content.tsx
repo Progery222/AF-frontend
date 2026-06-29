@@ -8,7 +8,7 @@ import { useBulkAction } from '@/hooks/useBulkAction'
 import { useScreenshotQueue } from '@/store'
 import { useToast } from '@/components/Toast'
 import { executeBulkItems, type BulkItem } from '@/lib/runOnPhones'
-import { Download, List, Trash2, HardDrive, Smartphone } from 'lucide-react'
+import { Download, List, Trash2, HardDrive, Smartphone, Send } from 'lucide-react'
 import type { ScreenResult } from '@/types'
 
 function contentStepsForKey(minioKey: string) {
@@ -33,6 +33,7 @@ export function ContentPage() {
   const takeAll = useScreenshotQueue((s) => s.takeAll)
   const { toast } = useToast()
   const [localLoading, setLocalLoading] = useState<string | null>(null)
+  const [objectKey, setObjectKey] = useState('')
 
   const { data, refetch, isFetching } = useQuery({
     queryKey: ['content', singleSerial],
@@ -104,6 +105,22 @@ export function ContentPage() {
       .finally(() => setLocalLoading(null))
   }
 
+  const downloadObjectKey = () => {
+    const key = objectKey.trim()
+    if (!key) {
+      toast('Укажите object_key', 'error')
+      return
+    }
+    return run(
+      'object-key',
+      { method: 'POST', suffix: '/content/download', body: { object_key: key } },
+      'Видео на телефон',
+    ).then((result) => {
+      if (result && isSingle) refetch()
+      return result
+    })
+  }
+
   if (!hasSelection) return <NoPhoneSelected />
 
   const items = data?.items ?? []
@@ -116,6 +133,28 @@ export function ContentPage() {
       />
 
       <SelectionBanner label={label} isMulti={isMulti} count={serials.length} />
+
+      <div className="mb-6 rounded-lg border border-border bg-surface-2 p-4">
+        <label className="text-sm">
+          <span className="mb-1 block text-muted">Object key видео</span>
+          <input
+            value={objectKey}
+            onChange={(e) => setObjectKey(e.target.value)}
+            placeholder="af-videos/job-id/output.mp4"
+            className="w-full rounded-lg border border-border bg-surface-3 px-3 py-2"
+          />
+        </label>
+        <ActionButton
+          className="mt-3"
+          variant="primary"
+          icon={<Send className="h-4 w-4" />}
+          loading={loading === 'object-key'}
+          disabled={objectKey.trim() === ''}
+          onClick={downloadObjectKey}
+        >
+          Видео на телефон
+        </ActionButton>
+      </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
         {isSingle && (

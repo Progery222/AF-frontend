@@ -193,7 +193,7 @@ AF-frontend/
 
 | Сервис | Роль для frontend |
 |--------|-------------------|
-| [AF-orkestrator](../AF-orkestrator/README.md) | Основной HTTP API |
+| [AF-phone-orchestrator](../AF-phone-orchestrator/README.md) | Основной HTTP API |
 | [AF-phone-provisioner](../AF-phone-provisioner/README.MD) | Статус provision |
 | [AF-phone-observer](../AF-phone-observer/README.md) | Скрины (через orchestrator) |
 | [AF-tg-admin-bot](../AF-tg-admin-bot/README.md) | Telegram-аналог тех же операций |

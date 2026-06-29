@@ -7,6 +7,7 @@ import { DashboardPage } from '@/pages/Dashboard'
 import { PhonesPage } from '@/pages/Phones'
 import { StatusPage } from '@/pages/Status'
 import { FeedPage } from '@/pages/Feed'
+import { SocialPage } from '@/pages/Social'
 import { ScreenPage } from '@/pages/Screen'
 import { ContentPage } from '@/pages/Content'
 import { VideoPage } from '@/pages/Video'
@@ -40,6 +41,7 @@ function AppRoutes() {
           <Route path="/phones" element={<PhonesPage />} />
           <Route path="/status" element={<StatusPage />} />
           <Route path="/feed" element={<FeedPage />} />
+          <Route path="/social" element={<SocialPage />} />
           <Route path="/screen" element={<ScreenPage />} />
           <Route path="/content" element={<ContentPage />} />
           <Route path="/video" element={<VideoPage />} />

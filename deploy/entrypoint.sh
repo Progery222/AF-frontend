@@ -33,9 +33,10 @@ wait_for() {
 echo "AF frontend: waiting for upstreams..."
 wait_for phone-orchestrator 9090 /health
 wait_for phone-provisioner 9090 /health
+wait_for behavior-engine 9097 /ready
 wait_for minio 9000 /minio/health/live
 
-echo "AF frontend: auth user=$USER, proxies: orch, prov, minio, bulk"
+echo "AF frontend: auth user=$USER, proxies: orch, prov, behavior, minio, bulk"
 
 bulk-proxy &
 exec nginx -g 'daemon off;'
