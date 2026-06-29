@@ -60,10 +60,10 @@ func main() {
 	orchBase := env("ORCH_HTTP", "http://phone-orchestrator:9090")
 	minioBase := env("MINIO_HTTP", "http://minio:9000")
 	listen := env("BULK_LISTEN", ":8081")
-	maxConc := envInt("BULK_MAX_CONCURRENCY", 64)
-	timeout := time.Duration(envInt("BULK_TIMEOUT_SEC", 120)) * time.Second
+	maxConc := envInt("BULK_MAX_CONCURRENCY", 500)
+	timeout := time.Duration(envInt("BULK_TIMEOUT_SEC", 180)) * time.Second
 
-	client := &http.Client{Timeout: timeout}
+	client := newBulkHTTPClient(maxConc, timeout)
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -354,6 +354,22 @@ func env(key, def string) string {
 		return v
 	}
 	return def
+}
+
+func newBulkHTTPClient(maxConc int, timeout time.Duration) *http.Client {
+	if maxConc < 1 {
+		maxConc = 1
+	}
+	pool := maxConc + 32
+	return &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			MaxIdleConns:        pool,
+			MaxIdleConnsPerHost: pool,
+			MaxConnsPerHost:     0,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
 }
 
 func envInt(key string, def int) int {
