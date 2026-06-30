@@ -17,11 +17,10 @@ import {
   MessageSquareText,
   Play,
   RefreshCcw,
-  RotateCcw,
   Search,
   Share2,
   SquareStack,
-  ThumbsUp,
+  XCircle,
 } from 'lucide-react'
 
 const NETWORKS: { id: SocialNetwork; label: string }[] = [
@@ -33,24 +32,6 @@ const NETWORKS: { id: SocialNetwork; label: string }[] = [
 const TABS = ['search', 'profile', 'inbox', 'reels', 'shorts', 'fyp']
 const FINAL_STATUSES: JobStatus[] = ['done', 'failed']
 
-// Лимит одновременных соц-действий: бережём phone-observer от перегрузки при
-// массовом запуске. Настраивается через VITE_SOCIAL_MAX_CONCURRENCY.
-const SOCIAL_MAX_CONCURRENCY = Number(import.meta.env.VITE_SOCIAL_MAX_CONCURRENCY ?? 4)
-
-// runPool — выполняет worker над items не более limit штук одновременно.
-async function runPool<T>(items: T[], limit: number, worker: (item: T) => Promise<void>) {
-  let i = 0
-  const run = async () => {
-    while (i < items.length) {
-      const idx = i
-      i += 1
-      await worker(items[idx])
-    }
-  }
-  const n = Math.max(1, Math.min(limit, items.length))
-  await Promise.all(Array.from({ length: n }, run))
-}
-
 interface JobRow {
   key: string
   serial: string
@@ -59,7 +40,6 @@ interface JobRow {
   status: JobStatus | 'request_error'
   error?: string
   result?: Record<string, unknown>
-  runner?: (serial: string) => Promise<BehaviorJob>
 }
 
 function statusText(status: JobRow['status']) {
@@ -144,48 +124,21 @@ export function SocialPage() {
       serial,
       label: actionLabel,
       status: 'pending' as const,
-      runner,
     }))
     setJobs((prev) => [...rows, ...prev].slice(0, 30))
 
     try {
-      await runPool(rows, SOCIAL_MAX_CONCURRENCY, async (row) => {
-        try {
-          const job = await runner(row.serial)
-          updateJob(row.key, fromJob(job))
-        } catch (e) {
-          updateJob(row.key, { status: 'request_error', error: (e as Error).message })
-        }
-      })
+      await Promise.all(
+        rows.map(async (row) => {
+          try {
+            const job = await runner(row.serial)
+            updateJob(row.key, fromJob(job))
+          } catch (e) {
+            updateJob(row.key, { status: 'request_error', error: (e as Error).message })
+          }
+        }),
+      )
       toast(`${actionLabel}: отправлено на ${rows.length}`, 'success')
-    } finally {
-      setLoading(null)
-    }
-  }
-
-  const failedRows = useMemo(
-    () => jobs.filter((row) => (row.status === 'failed' || row.status === 'request_error') && row.runner),
-    [jobs],
-  )
-
-  const retryFailed = async () => {
-    if (failedRows.length === 0) {
-      toast('Нет упавших задач для повтора', 'error')
-      return
-    }
-    setLoading('retry')
-    const rows = failedRows
-    try {
-      await runPool(rows, SOCIAL_MAX_CONCURRENCY, async (row) => {
-        updateJob(row.key, { status: 'pending', error: undefined, jobId: undefined, result: undefined })
-        try {
-          const job = await row.runner!(row.serial)
-          updateJob(row.key, fromJob(job))
-        } catch (e) {
-          updateJob(row.key, { status: 'request_error', error: (e as Error).message })
-        }
-      })
-      toast(`Повтор: ${rows.length}`, 'success')
     } finally {
       setLoading(null)
     }
@@ -237,7 +190,17 @@ export function SocialPage() {
               Открыть приложение
             </ActionButton>
 
-            <div className="flex gap-2">
+            <ActionButton
+              icon={<XCircle className="h-4 w-4" />}
+              loading={loading === 'close'}
+              onClick={() =>
+                startJobs('close', 'Закрыть приложение', (serial) => behaviorApi.close(network, serial))
+              }
+            >
+              Закрыть приложение
+            </ActionButton>
+
+            <div className="flex gap-2 sm:col-span-2">
               <select
                 value={tab}
                 onChange={(e) => setTab(e.target.value)}
@@ -275,21 +238,9 @@ export function SocialPage() {
             </ActionButton>
 
             <ActionButton
-              icon={<ThumbsUp className="h-4 w-4" />}
-              loading={loading === 'like'}
-              onClick={() =>
-                startJobs('like', 'Лайк текущего', (serial) => behaviorApi.like(network, serial))
-              }
-            >
-              Лайк текущего
-            </ActionButton>
-
-            <ActionButton
               icon={<Share2 className="h-4 w-4" />}
-              loading={loading === 'repost'}
-              onClick={() =>
-                startJobs('repost', 'Репост', (serial) => behaviorApi.repost(network, serial))
-              }
+              disabled
+              title="В behavior-engine пока нет сценария repost/share"
             >
               Репост
             </ActionButton>
@@ -429,27 +380,14 @@ export function SocialPage() {
       <section className="rounded-lg border border-border bg-surface-2">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="font-medium">Jobs</div>
-          <div className="flex items-center gap-2">
-            {failedRows.length > 0 && (
-              <ActionButton
-                variant="ghost"
-                className="px-3 py-1.5"
-                icon={<RotateCcw className="h-4 w-4" />}
-                loading={loading === 'retry'}
-                onClick={retryFailed}
-              >
-                Повторить упавшие ({failedRows.length})
-              </ActionButton>
-            )}
-            <ActionButton
-              variant="ghost"
-              className="px-3 py-1.5"
-              icon={<RefreshCcw className="h-4 w-4" />}
-              onClick={() => setJobs([])}
-            >
-              Очистить
-            </ActionButton>
-          </div>
+          <ActionButton
+            variant="ghost"
+            className="px-3 py-1.5"
+            icon={<RefreshCcw className="h-4 w-4" />}
+            onClick={() => setJobs([])}
+          >
+            Очистить
+          </ActionButton>
         </div>
         {jobs.length === 0 ? (
           <div className="px-4 py-10 text-center text-sm text-muted">

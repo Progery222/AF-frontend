@@ -94,6 +94,7 @@ export interface ProvStatus {
 
 export interface ScenarioSummary {
   id: string
+  yaml_id?: string
   name: string
   serial: string
   valid_from?: string
@@ -141,10 +142,13 @@ export interface ScenarioValidateResponse {
 }
 
 export interface ScenarioGenerateResponse extends ScenarioFiles {
+  normalized_scenario_yaml?: string
   warnings?: string[]
+  errors?: string[]
   step_issues?: ScenarioStepIssue[]
   valid?: boolean
   runnable_by_scheduler?: boolean
+  steps_count?: number
 }
 
 export interface ScenarioLogsResponse {

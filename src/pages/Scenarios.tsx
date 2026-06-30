@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/orchestrator'
 import { PageHeader, NoPhoneSelected } from '@/components/RequirePhone'
@@ -7,7 +7,7 @@ import { useBulkAction } from '@/hooks/useBulkAction'
 import { useToast } from '@/components/Toast'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { ActionButton } from '@/components/ActionButton'
-import { AlertTriangle, CheckCircle2, Play, Plus, Save, RefreshCw, Sparkles, Star, Trash2, Wand2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Play, Plus, Save, RefreshCw, Sparkles, Star, Trash2, Wand2 } from 'lucide-react'
 import type { ScenarioStepIssue, ScenarioSummary } from '@/types'
 
 const EMPTY_SCENARIO = `id: new-scenario
@@ -37,20 +37,33 @@ warmup_feed:
 
 const TIKTOK_PACKAGES = ['com.zhiliaoapp.musically', 'com.ss.android.ugc.trill']
 
-const DEFAULT_AI_PROMPT = `Ежедневный TikTok-сценарий по Москве.
-Режим ЦЕПОЧКИ (schedule.execution: sequential) — НЕ ставь at на каждый шаг!
-
-Старт цепочки в 12:38 МСК (только у первого шага at: "12:38").
-Остальные шаги: after_previous: true, БЕЗ поля at.
-
-Шаги по порядку:
-1) open_app — TikTok com.zhiliaoapp.musically
-2) warmup_feed — профиль tiktok_daily, phase pre_publish (прогрев ~60 сек)
-3) social_action — search-feed, запрос «футбол», count 5, duration_sec 120
-4) close_app — тот же пакет, after_failure: true (закрыть даже если поиск упал)
-
-timezone: Europe/Moscow, schedule.type: daily_recurring, execution: sequential.
-valid_from с сегодня, valid_until через месяц.`
+function CollapsibleSection({
+  title,
+  open,
+  onToggle,
+  children,
+  className = '',
+}: {
+  title: string
+  open: boolean
+  onToggle: () => void
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`rounded-lg border border-border bg-surface-3 ${className}`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-300 hover:bg-surface-2 rounded-lg"
+      >
+        {open ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+        {title}
+      </button>
+      {open && <div className="border-t border-border px-3 pb-3 pt-2 space-y-2">{children}</div>}
+    </div>
+  )
+}
 
 function parseStepsFromYAML(yaml: string): { id: string; action: string }[] {
   const blocks = yaml.split(/\n\s*-\s+id:/)
@@ -75,7 +88,12 @@ export function ScenariosPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [scenarioYAML, setScenarioYAML] = useState(EMPTY_SCENARIO)
   const [variablesYAML, setVariablesYAML] = useState(EMPTY_VARIABLES)
-  const [aiPrompt, setAiPrompt] = useState(DEFAULT_AI_PROMPT)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [showAiPanel, setShowAiPanel] = useState(false)
+  const [showScenarioYaml, setShowScenarioYaml] = useState(false)
+  const [showVariablesYaml, setShowVariablesYaml] = useState(false)
+  const [showLogs, setShowLogs] = useState(false)
+  const autoLoadedFor = useRef<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [validating, setValidating] = useState(false)
@@ -110,6 +128,34 @@ export function ScenariosPage() {
   const items = listData?.items ?? []
   const activeScenarioId = listData?.active_scenario_id ?? items.find((s) => s.is_active)?.id ?? null
 
+  useEffect(() => {
+    autoLoadedFor.current = null
+  }, [singleSerial])
+
+  const loadScenario = async (id: string) => {
+    if (!singleSerial) return
+    try {
+      const files = await api.getScenario(singleSerial, id)
+      setSelectedId(id)
+      setScenarioYAML(files.scenario_yaml)
+      setVariablesYAML(files.variables_yaml || EMPTY_VARIABLES)
+      setStepIssues([])
+      setGenWarnings([])
+      setIsValid(null)
+      setRunnable(null)
+    } catch (e) {
+      toast((e as Error).message, 'error')
+    }
+  }
+
+  useEffect(() => {
+    if (!singleSerial || !listData || autoLoadedFor.current === singleSerial) return
+    const id = activeScenarioId ?? items[0]?.id
+    if (!id) return
+    autoLoadedFor.current = singleSerial
+    void loadScenario(id)
+  }, [singleSerial, listData, activeScenarioId, items])
+
   const newScenario = () => {
     if (!singleSerial) return
     const stamp = Date.now().toString(36)
@@ -131,6 +177,7 @@ steps: []
     setGenWarnings([])
     setIsValid(null)
     setRunnable(null)
+    setShowScenarioYaml(true)
   }
 
   const setActiveScenario = async (id: string) => {
@@ -153,40 +200,24 @@ steps: []
     )
   }, [singleSerial])
 
-  const loadScenario = async (id: string) => {
-    if (!singleSerial) return
-    try {
-      const files = await api.getScenario(singleSerial, id)
-      setSelectedId(id)
-      setScenarioYAML(files.scenario_yaml)
-      setVariablesYAML(files.variables_yaml || EMPTY_VARIABLES)
-      setStepIssues([])
-      setGenWarnings([])
-      setIsValid(null)
-      setRunnable(null)
-    } catch (e) {
-      toast((e as Error).message, 'error')
-    }
-  }
-
   const saveScenario = async () => {
     if (!singleSerial) return
-    const idMatch = scenarioYAML.match(/^id:\s*(\S+)/m)
-    const id = idMatch?.[1] ?? selectedId ?? 'new-scenario'
+    const yamlId = scenarioYAML.match(/^id:\s*(\S+)/m)?.[1]
+    const storageId = selectedId ?? yamlId ?? 'new-scenario'
     setSaving(true)
     try {
       await validateDraft(false)
-      await api.putScenario(singleSerial, id, {
+      await api.putScenario(singleSerial, storageId, {
         scenario_yaml: scenarioYAML,
         variables_yaml: variablesYAML,
       })
-      setSelectedId(id)
+      setSelectedId(storageId)
       toast('Сценарий сохранён', 'success')
       await refetchList()
       if (!activeScenarioId) {
-        await setActiveScenario(id)
+        await setActiveScenario(storageId)
       }
-      qc.invalidateQueries({ queryKey: ['scenario-status', singleSerial, id] })
+      qc.invalidateQueries({ queryKey: ['scenario-status', singleSerial, storageId] })
     } catch (e) {
       toast((e as Error).message, 'error')
     } finally {
@@ -249,17 +280,22 @@ steps: []
     setGenerating(true)
     try {
       const res = await api.generateScenario(singleSerial, aiPrompt.trim())
-      setScenarioYAML(res.scenario_yaml)
-      setVariablesYAML(res.variables_yaml || EMPTY_VARIABLES)
+      const yaml = res.normalized_scenario_yaml?.trim() || res.scenario_yaml
+      setScenarioYAML(yaml)
+      setVariablesYAML(res.variables_yaml?.trim() || EMPTY_VARIABLES)
       setStepIssues(res.step_issues ?? [])
       setGenWarnings(res.warnings ?? [])
       setIsValid(res.valid ?? null)
       setRunnable(res.runnable_by_scheduler ?? null)
-      if (res.warnings?.length) {
-        toast(`Сгенерировано с ${res.warnings.length} предупреждениями`, 'success')
+      if (res.valid === false) {
+        toast(`Ошибки: ${(res.errors ?? []).join('; ') || 'см. step_issues'}`, 'error')
+      } else if ((res.warnings ?? []).length > 0) {
+        toast(`Сгенерировано и нормализовано (${res.warnings!.length} предупреждений)`, 'success')
       } else {
-        toast('Черновик сгенерирован и нормализован', 'success')
+        toast('Черновик сгенерирован, проверен и нормализован', 'success')
       }
+      setShowScenarioYaml(true)
+      if (res.variables_yaml?.trim()) setShowVariablesYaml(true)
     } catch (e) {
       toast((e as Error).message, 'error')
     } finally {
@@ -283,7 +319,7 @@ steps: []
 
   const runStep = async (stepId: string, action: string) => {
     if (!singleSerial) return
-    const scenarioId = scenarioYAML.match(/^id:\s*(\S+)/m)?.[1] ?? selectedId
+    const scenarioId = selectedId ?? scenarioYAML.match(/^id:\s*(\S+)/m)?.[1]
     if (!scenarioId) {
       toast('Сначала укажите id сценария', 'error')
       return
@@ -381,7 +417,12 @@ steps: []
                       )}
                       <span className="font-medium truncate">{s.name || s.id}</span>
                     </div>
-                    <div className="text-xs text-muted truncate">{s.id}</div>
+                    <div className="text-xs text-muted truncate">
+                      {s.id}
+                      {s.yaml_id && s.yaml_id !== s.id && (
+                        <span className="text-amber-400/80"> · yaml: {s.yaml_id}</span>
+                      )}
+                    </div>
                   </button>
                   <div className="flex flex-col justify-center gap-0.5 pr-1 py-1">
                     {!s.is_active && (
@@ -463,13 +504,16 @@ steps: []
             </div>
           )}
 
-          <div className="rounded-lg border border-border bg-surface-3 p-3 space-y-2">
-            <div className="text-xs font-medium text-slate-300">ИИ-генерация</div>
+          <CollapsibleSection
+            title="ИИ-генерация"
+            open={showAiPanel}
+            onToggle={() => setShowAiPanel((v) => !v)}
+          >
             <textarea
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
               rows={12}
-              placeholder="Опишите сценарий..."
+              placeholder="Опишите сценарий: время старта, шаги, пакет приложения..."
               className="w-full min-h-[220px] resize-y rounded border border-border bg-surface-2 px-2 py-2 text-xs font-mono leading-relaxed"
             />
             <ActionButton
@@ -481,7 +525,7 @@ steps: []
             >
               Сгенерировать черновик
             </ActionButton>
-          </div>
+          </CollapsibleSection>
         </div>
 
         <div className="lg:col-span-2 space-y-3">
@@ -516,8 +560,11 @@ steps: []
             )}
           </div>
 
-          <div>
-            <label className="text-xs text-muted block mb-1">scenario.yaml</label>
+          <CollapsibleSection
+            title="scenario.yaml"
+            open={showScenarioYaml}
+            onToggle={() => setShowScenarioYaml((v) => !v)}
+          >
             <textarea
               value={scenarioYAML}
               onChange={(e) => setScenarioYAML(e.target.value)}
@@ -525,10 +572,13 @@ steps: []
               spellCheck={false}
               className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs font-mono leading-relaxed"
             />
-          </div>
+          </CollapsibleSection>
 
-          <div>
-            <label className="text-xs text-muted block mb-1">variables.yaml</label>
+          <CollapsibleSection
+            title="variables.yaml"
+            open={showVariablesYaml}
+            onToggle={() => setShowVariablesYaml((v) => !v)}
+          >
             <textarea
               value={variablesYAML}
               onChange={(e) => setVariablesYAML(e.target.value)}
@@ -536,12 +586,11 @@ steps: []
               spellCheck={false}
               className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs font-mono leading-relaxed"
             />
-          </div>
+          </CollapsibleSection>
 
           {selectedId && (
-            <div>
+            <CollapsibleSection title="Логи" open={showLogs} onToggle={() => setShowLogs((v) => !v)}>
               <div className="flex items-center gap-2 mb-1">
-                <label className="text-xs text-muted">Логи</label>
                 <input
                   type="date"
                   value={logDate}
@@ -559,7 +608,7 @@ steps: []
               <pre className="rounded-lg border border-border bg-surface-2 p-3 text-xs font-mono max-h-48 overflow-auto whitespace-pre-wrap">
                 {logsData?.logs || '(пусто)'}
               </pre>
-            </div>
+            </CollapsibleSection>
           )}
         </div>
       </div>
