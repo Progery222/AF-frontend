@@ -56,38 +56,10 @@ function AppRow({
   )
 }
 
-function AppSection({ title, apps, actionLoading, onOpen, onClose }: {
-  title: string
-  apps: PhoneApp[]
-  actionLoading: string | null
-  onOpen: (app: PhoneApp) => void
-  onClose: (app: PhoneApp) => void
-}) {
-  if (apps.length === 0) return null
-  return (
-    <section>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">{title}</h2>
-      <div className="space-y-2">
-        {apps.map((app) => (
-          <AppRow
-            key={app.id}
-            app={app}
-            loadingOpen={actionLoading === `open:${app.package}`}
-            loadingClose={actionLoading === `close:${app.package}`}
-            onOpen={() => onOpen(app)}
-            onClose={() => onClose(app)}
-          />
-        ))}
-      </div>
-    </section>
-  )
-}
-
 export function AppsPage() {
   const { hasSelection, label, isMulti, serials } = useTargetPhones()
   const { toast } = useToast()
-  const [social, setSocial] = useState<PhoneApp[]>([])
-  const [system, setSystem] = useState<PhoneApp[]>([])
+  const [apps, setApps] = useState<PhoneApp[]>([])
   const [catalogLoading, setCatalogLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
@@ -98,8 +70,7 @@ export function AppsPage() {
     setCatalogLoading(true)
     try {
       const data = await api.listApps(catalogSerial)
-      setSocial(data.social ?? [])
-      setSystem(data.system ?? [])
+      setApps(data.apps ?? [])
     } catch (e) {
       toast((e as Error).message, 'error')
     } finally {
@@ -141,7 +112,7 @@ export function AppsPage() {
     <div>
       <PageHeader
         title="Приложения"
-        description="Открытие и закрытие приложений на выбранных телефонах через orchestrator"
+        description="Системные приложения: открытие и закрытие на выбранных телефонах. Соцсети — на вкладке «Соцсети»."
       />
       <SelectionBanner label={label} isMulti={isMulti} count={serials.length} />
 
@@ -150,22 +121,20 @@ export function AppsPage() {
           <Loader2 className="h-5 w-5 animate-spin" />
           Загрузка каталога…
         </div>
+      ) : apps.length === 0 ? (
+        <div className="py-8 text-center text-muted">Каталог пуст</div>
       ) : (
-        <div className="space-y-6">
-          <AppSection
-            title="Соцсети"
-            apps={social}
-            actionLoading={actionLoading}
-            onOpen={(app) => void runAppAction('open', app)}
-            onClose={(app) => void runAppAction('close', app)}
-          />
-          <AppSection
-            title="Системные"
-            apps={system}
-            actionLoading={actionLoading}
-            onOpen={(app) => void runAppAction('open', app)}
-            onClose={(app) => void runAppAction('close', app)}
-          />
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {apps.map((app) => (
+            <AppRow
+              key={app.id}
+              app={app}
+              loadingOpen={actionLoading === `open:${app.package}`}
+              loadingClose={actionLoading === `close:${app.package}`}
+              onOpen={() => void runAppAction('open', app)}
+              onClose={() => void runAppAction('close', app)}
+            />
+          ))}
         </div>
       )}
     </div>

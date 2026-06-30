@@ -9,6 +9,8 @@ export type SocialAction =
   | 'search-feed'
   | 'chat'
   | 'comment'
+  | 'like'
+  | 'repost'
   | 'scrape-profile'
 
 export type JobStatus = 'pending' | 'running' | 'done' | 'failed'
@@ -61,6 +63,12 @@ export const behaviorApi = {
 
   comment: (network: SocialNetwork, body: SocialActionRequest) =>
     behavior.post<BehaviorJob>(socialPath(network, 'comment'), body),
+
+  like: (network: SocialNetwork, serial: string) =>
+    behavior.post<BehaviorJob>(socialPath(network, 'like'), { serial }),
+
+  repost: (network: SocialNetwork, serial: string) =>
+    behavior.post<BehaviorJob>(socialPath(network, 'repost'), { serial }),
 
   getJob: (id: string) => behavior.get<BehaviorJob>(`/jobs/${encodeURIComponent(id)}`),
 }

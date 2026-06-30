@@ -5,11 +5,13 @@ import { ActionButton } from '@/components/ActionButton'
 import { SelectionBanner } from '@/components/SelectionBanner'
 import { StateBadge } from '@/components/StateBadge'
 import { useBulkAction } from '@/hooks/useBulkAction'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { Pause, Play, RotateCcw, Info, Server } from 'lucide-react'
 
 export function FSMPage() {
   const { hasSelection, label, isMulti, serials, singleSerial, isSingle, loading, run } =
     useBulkAction()
+  const confirm = useConfirm()
 
   const { data: phone, refetch } = useQuery({
     queryKey: ['phone', singleSerial],
@@ -94,11 +96,18 @@ export function FSMPage() {
           variant="danger"
           icon={<RotateCcw className="h-4 w-4" />}
           loading={loading === 'reprov'}
-          onClick={() => {
-            const msg = isMulti
+          onClick={async () => {
+            const message = isMulti
               ? `Запустить reprovision на ${serials.length} телефонах?`
               : 'Запустить reprovision? Телефон вернётся в состояние new.'
-            if (!confirm(msg)) return
+            const ok = await confirm({
+              title: 'Reprovision?',
+              message,
+              confirmLabel: 'Запустить',
+              cancelLabel: 'Отмена',
+              variant: 'danger',
+            })
+            if (!ok) return
             run('reprov', { method: 'POST', suffix: '/reprovision' }, 'Reprovision')
           }}
         >

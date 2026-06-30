@@ -7,6 +7,7 @@ import { SelectionBanner } from '@/components/SelectionBanner'
 import { useBulkAction } from '@/hooks/useBulkAction'
 import { useScreenshotQueue } from '@/store'
 import { useToast } from '@/components/Toast'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { executeBulkItems, type BulkItem } from '@/lib/runOnPhones'
 import { Download, List, Trash2, HardDrive, Smartphone, Send } from 'lucide-react'
 import type { ScreenResult } from '@/types'
@@ -32,6 +33,7 @@ export function ContentPage() {
     useBulkAction()
   const takeAll = useScreenshotQueue((s) => s.takeAll)
   const { toast } = useToast()
+  const confirm = useConfirm()
   const [localLoading, setLocalLoading] = useState<string | null>(null)
   const [objectKey, setObjectKey] = useState('')
 
@@ -198,11 +200,18 @@ export function ContentPage() {
           variant="danger"
           icon={<Trash2 className="h-4 w-4" />}
           loading={loading === 'all'}
-          onClick={() => {
-            const msg = isMulti
+          onClick={async () => {
+            const message = isMulti
               ? `Удалить весь контент на ${serials.length} телефонах?`
               : 'Удалить весь контент с телефона и из MinIO?'
-            if (!confirm(msg)) return
+            const ok = await confirm({
+              title: 'Удалить весь контент?',
+              message,
+              confirmLabel: 'Удалить',
+              cancelLabel: 'Отмена',
+              variant: 'danger',
+            })
+            if (!ok) return
             run('all', { method: 'DELETE', suffix: '/content' }, 'Контент удалён')
           }}
         >

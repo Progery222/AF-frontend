@@ -13,12 +13,11 @@ import type {
   ScenarioListResponse,
   ScenarioLogsResponse,
   ScenarioStatus,
+  ScenarioValidateResponse,
   ScreenResult,
   VideoJob,
 } from '@/types'
 import { orch, phonePath, prov } from './client'
-
-export const PHONES_PAGE_SIZE = 20
 
 export const api = {
   getPhones: () => orch.get<PhonesResponse>('/phones'),
@@ -81,6 +80,12 @@ export const api = {
   listScenarios: (serial: string) =>
     orch.get<ScenarioListResponse>(phonePath(serial, '/scenarios')),
 
+  setActiveScenario: (serial: string, scenarioId: string) =>
+    orch.put<{ message: string; active_scenario_id: string }>(
+      phonePath(serial, '/scenarios/active'),
+      { scenario_id: scenarioId },
+    ),
+
   getScenario: (serial: string, scenarioId: string) =>
     orch.get<ScenarioFiles>(phonePath(serial, `/scenarios/${encodeURIComponent(scenarioId)}`)),
 
@@ -102,6 +107,30 @@ export const api = {
 
   generateScenario: (serial: string, prompt: string) =>
     orch.post<ScenarioGenerateResponse>(phonePath(serial, '/scenarios/generate'), { prompt }),
+
+  validateScenario: (serial: string, scenarioYaml: string, variablesYaml: string, normalize = true) =>
+    orch.post<ScenarioValidateResponse>(phonePath(serial, '/scenarios/validate'), {
+      scenario_yaml: scenarioYaml,
+      variables_yaml: variablesYaml,
+      normalize,
+    }),
+
+  runScenarioStep: (
+    serial: string,
+    body: {
+      scenario_id: string
+      step_id: string
+      action?: string
+      params?: Record<string, string>
+      uses?: string
+      scenario_yaml?: string
+      variables_yaml?: string
+    },
+  ) =>
+    orch.post<{ message: string; result?: Record<string, unknown> }>(
+      phonePath(serial, '/scenarios/run-step'),
+      body,
+    ),
 
   listApps: (serial: string) =>
     orch.get<PhoneAppsResponse>(phonePath(serial, '/apps')),

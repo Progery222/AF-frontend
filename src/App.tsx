@@ -1,12 +1,12 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout } from '@/components/Layout'
 import { ToastProvider } from '@/components/Toast'
+import { ConfirmProvider } from '@/components/ConfirmDialog'
 import { AuthGate } from '@/components/AuthGate'
 import { LoginPage } from '@/pages/Login'
 import { DashboardPage } from '@/pages/Dashboard'
 import { PhonesPage } from '@/pages/Phones'
 import { StatusPage } from '@/pages/Status'
-import { FeedPage } from '@/pages/Feed'
 import { SocialPage } from '@/pages/Social'
 import { ScreenPage } from '@/pages/Screen'
 import { ContentPage } from '@/pages/Content'
@@ -19,6 +19,7 @@ import { AppsPage } from '@/pages/Apps'
 export default function App() {
   return (
     <ToastProvider>
+      <ConfirmProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route
@@ -32,6 +33,7 @@ export default function App() {
           }
         />
       </Routes>
+      </ConfirmProvider>
     </ToastProvider>
   )
 }
@@ -39,20 +41,20 @@ export default function App() {
 function AppRoutes() {
   return (
     <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/phones" element={<PhonesPage />} />
-          <Route path="/status" element={<StatusPage />} />
-          <Route path="/feed" element={<FeedPage />} />
-          <Route path="/social" element={<SocialPage />} />
-          <Route path="/screen" element={<ScreenPage />} />
-          <Route path="/content" element={<ContentPage />} />
-          <Route path="/video" element={<VideoPage />} />
-          <Route path="/scenarios" element={<ScenariosPage />} />
-          <Route path="/fsm" element={<FSMPage />} />
-          <Route path="/controls" element={<ControlsPage />} />
-          <Route path="/apps" element={<AppsPage />} />
-          <Route path="/app" element={<Navigate to="/apps" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+      <Route path="/" element={<DashboardPage />} />
+      <Route path="/phones" element={<PhonesPage />} />
+      <Route path="/status" element={<StatusPage />} />
+      <Route path="/feed" element={<Navigate to="/controls" replace />} />
+      <Route path="/social" element={<SocialPage />} />
+      <Route path="/screen" element={<ScreenPage />} />
+      <Route path="/content" element={<ContentPage />} />
+      <Route path="/video" element={<VideoPage />} />
+      <Route path="/scenarios" element={<ScenariosPage />} />
+      <Route path="/fsm" element={<FSMPage />} />
+      <Route path="/controls" element={<ControlsPage />} />
+      <Route path="/apps" element={<AppsPage />} />
+      <Route path="/app" element={<Navigate to="/apps" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }

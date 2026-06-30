@@ -8,8 +8,8 @@ import {
   Activity,
   ChevronRight,
   Monitor,
-  Rss,
   Smartphone,
+  Gamepad2,
 } from 'lucide-react'
 
 export function DashboardPage() {
@@ -38,7 +38,7 @@ export function DashboardPage() {
   const quickLinks = [
     { to: '/phones', label: 'Телефоны', icon: Smartphone, desc: 'Выбор устройства' },
     { to: '/status', label: 'Статус', icon: Activity, desc: 'Готовность сервисов' },
-    { to: '/feed', label: 'Лента', icon: Rss, desc: 'Свайпы и тапы' },
+    { to: '/controls', label: 'Управление', icon: Gamepad2, desc: 'Кнопки и жесты ленты' },
     { to: '/screen', label: 'Экран', icon: Monitor, desc: 'Скриншоты и UI' },
   ]
 

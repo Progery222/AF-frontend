@@ -5,6 +5,7 @@ import path from 'path'
 
 const orchTarget = process.env.VITE_ORCH_PROXY_TARGET ?? 'http://127.0.0.1:9092'
 const provTarget = process.env.VITE_PROV_PROXY_TARGET ?? 'http://127.0.0.1:19092'
+const campaignTarget = process.env.VITE_CAMPAIGN_PROXY_TARGET ?? 'http://127.0.0.1:19097'
 const behaviorTarget = process.env.VITE_BEHAVIOR_PROXY_TARGET ?? 'http://127.0.0.1:19096'
 const minioTarget = process.env.VITE_MINIO_PROXY_TARGET ?? 'http://127.0.0.1:9000'
 const bulkMaxConcurrency = Number(process.env.BULK_MAX_CONCURRENCY ?? 500)
@@ -257,6 +258,11 @@ export default defineConfig({
         target: provTarget,
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api\/prov/, ''),
+      },
+      '/api/campaigns': {
+        target: campaignTarget,
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api\/campaigns/, '/campaigns'),
       },
       '/api/behavior': {
         target: behaviorTarget,

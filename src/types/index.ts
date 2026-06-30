@@ -98,10 +98,12 @@ export interface ScenarioSummary {
   serial: string
   valid_from?: string
   valid_until?: string
+  is_active?: boolean
 }
 
 export interface ScenarioListResponse {
   serial: string
+  active_scenario_id?: string
   items: ScenarioSummary[]
 }
 
@@ -121,8 +123,28 @@ export interface ScenarioStatus {
   timezone?: string
 }
 
+export interface ScenarioStepIssue {
+  step_id: string
+  action?: string
+  level: 'error' | 'warning'
+  message: string
+}
+
+export interface ScenarioValidateResponse {
+  valid: boolean
+  errors?: string[]
+  warnings?: string[]
+  step_issues?: ScenarioStepIssue[]
+  normalized_scenario_yaml?: string
+  steps_count?: number
+  runnable_by_scheduler?: boolean
+}
+
 export interface ScenarioGenerateResponse extends ScenarioFiles {
   warnings?: string[]
+  step_issues?: ScenarioStepIssue[]
+  valid?: boolean
+  runnable_by_scheduler?: boolean
 }
 
 export interface ScenarioLogsResponse {
@@ -133,13 +155,11 @@ export interface PhoneApp {
   id: string
   name: string
   package: string
-  category: 'social' | 'system'
 }
 
 export interface PhoneAppsResponse {
   serial: string
-  social: PhoneApp[]
-  system: PhoneApp[]
+  apps: PhoneApp[]
 }
 
 export interface PhoneAppActionResponse {
