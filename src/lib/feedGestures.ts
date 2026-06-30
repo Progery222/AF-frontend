@@ -6,9 +6,14 @@ const REF_H = 1920
 
 const REF_SWIPE_UP = { x0: 540, y0: 1650, x1: 540, y1: 450 }
 const REF_SWIPE_DOWN = { x0: 540, y0: 450, x1: 540, y1: 1650 }
+const REF_SWIPE_LEFT = { x0: 900, y0: 960, x1: 180, y1: 960 }
+const REF_SWIPE_RIGHT = { x0: 180, y0: 960, x1: 900, y1: 960 }
 const REF_TAP = { x: 540, y: 960 }
 
-export type FeedGestureKind = 'swipeUp' | 'swipeDown' | 'tap'
+export type FeedGestureKind = 'swipeUp' | 'swipeDown' | 'swipeLeft' | 'swipeRight' | 'tap'
+
+export const REF_SCREEN = { width: REF_W, height: REF_H }
+export const DEFAULT_TAP_REF = REF_TAP
 
 export interface ScreenSize {
   width: number
@@ -47,12 +52,30 @@ export function feedGestureBody(
     }
   }
 
-  const ref = kind === 'swipeUp' ? REF_SWIPE_UP : REF_SWIPE_DOWN
+  const ref =
+    kind === 'swipeUp'
+      ? REF_SWIPE_UP
+      : kind === 'swipeDown'
+        ? REF_SWIPE_DOWN
+        : kind === 'swipeLeft'
+          ? REF_SWIPE_LEFT
+          : REF_SWIPE_RIGHT
   return {
     x0: scaleCoord(ref.x0, REF_W, size.width),
     y0: scaleCoord(ref.y0, REF_H, size.height),
     x1: scaleCoord(ref.x1, REF_W, size.width),
     y1: scaleCoord(ref.y1, REF_H, size.height),
+  }
+}
+
+export function customTapBody(
+  refX: number,
+  refY: number,
+  size: ScreenSize,
+): { x: number; y: number } {
+  return {
+    x: scaleCoord(refX, REF_W, size.width),
+    y: scaleCoord(refY, REF_H, size.height),
   }
 }
 
