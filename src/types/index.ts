@@ -113,6 +113,18 @@ export interface ScenarioFiles {
   variables_yaml: string
 }
 
+export interface ScenarioRunNowOutcome {
+  scenario_id: string
+  status: 'completed' | 'failed' | 'skipped' | string
+  steps_run?: string[]
+  error?: string
+}
+
+export interface ScenarioRunNowResponse {
+  serial: string
+  results: ScenarioRunNowOutcome[]
+}
+
 export interface ScenarioStatus {
   serial: string
   scenario_id: string

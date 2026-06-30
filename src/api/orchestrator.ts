@@ -12,6 +12,7 @@ import type {
   ScenarioGenerateResponse,
   ScenarioListResponse,
   ScenarioLogsResponse,
+  ScenarioRunNowResponse,
   ScenarioStatus,
   ScenarioValidateResponse,
   ScreenResult,
@@ -130,6 +131,13 @@ export const api = {
     orch.post<{ message: string; result?: Record<string, unknown> }>(
       phonePath(serial, '/scenarios/run-step'),
       body,
+    ),
+
+  runScenariosNow: (serial: string, scenarioIds: string[]) =>
+    orch.post<ScenarioRunNowResponse>(
+      phonePath(serial, '/scenarios/run-now'),
+      { scenario_ids: scenarioIds },
+      45 * 60 * 1000,
     ),
 
   listApps: (serial: string) =>

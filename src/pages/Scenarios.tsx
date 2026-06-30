@@ -7,7 +7,7 @@ import { useBulkAction } from '@/hooks/useBulkAction'
 import { useToast } from '@/components/Toast'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { ActionButton } from '@/components/ActionButton'
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Play, Plus, Save, RefreshCw, Sparkles, Star, Trash2, Wand2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Play, Plus, Save, RefreshCw, Sparkles, Star, Trash2, Wand2, Zap } from 'lucide-react'
 import type { ScenarioStepIssue, ScenarioSummary } from '@/types'
 
 const EMPTY_SCENARIO = `id: new-scenario
@@ -98,6 +98,8 @@ export function ScenariosPage() {
   const [generating, setGenerating] = useState(false)
   const [validating, setValidating] = useState(false)
   const [runningStep, setRunningStep] = useState<string | null>(null)
+  const [runningNow, setRunningNow] = useState(false)
+  const [selectedForRun, setSelectedForRun] = useState<Set<string>>(new Set())
   const [logDate, setLogDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [stepIssues, setStepIssues] = useState<ScenarioStepIssue[]>([])
   const [genWarnings, setGenWarnings] = useState<string[]>([])
@@ -317,6 +319,38 @@ steps: []
     toast(`Подставлен TikTok: ${pkg}`, 'success')
   }
 
+  const toggleRunSelection = (id: string) => {
+    setSelectedForRun((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const runScenariosNow = async () => {
+    if (!singleSerial || selectedForRun.size === 0) return
+    const ids = [...selectedForRun]
+    setRunningNow(true)
+    try {
+      const res = await api.runScenariosNow(singleSerial, ids)
+      const summary = res.results
+        .map((r) => `${r.scenario_id}: ${r.status}${r.steps_run?.length ? ` (${r.steps_run.join(' → ')})` : ''}`)
+        .join('; ')
+      const hasFailed = res.results.some((r) => r.status === 'failed')
+      toast(summary || 'Запуск завершён', hasFailed ? 'error' : 'success')
+      await refetchList()
+      for (const id of ids) {
+        qc.invalidateQueries({ queryKey: ['scenario-status', singleSerial, id] })
+        if (selectedId === id) refetchLogs()
+      }
+    } catch (e) {
+      toast((e as Error).message, 'error')
+    } finally {
+      setRunningNow(false)
+    }
+  }
+
   const runStep = async (stepId: string, action: string) => {
     if (!singleSerial) return
     const scenarioId = selectedId ?? scenarioYAML.match(/^id:\s*(\S+)/m)?.[1]
@@ -391,6 +425,36 @@ steps: []
           {!activeScenarioId && items.length > 0 && (
             <p className="text-xs text-amber-400/90">Выберите активный сценарий для планировщика</p>
           )}
+          {items.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <ActionButton
+                variant="primary"
+                className="text-xs"
+                icon={<Zap className="h-3.5 w-3.5" />}
+                loading={runningNow}
+                disabled={selectedForRun.size === 0}
+                onClick={runScenariosNow}
+              >
+                Запустить сейчас ({selectedForRun.size})
+              </ActionButton>
+              <button
+                type="button"
+                className="text-xs text-muted hover:text-slate-300"
+                onClick={() => setSelectedForRun(new Set(items.map((s) => s.id)))}
+              >
+                выбрать все
+              </button>
+              {selectedForRun.size > 0 && (
+                <button
+                  type="button"
+                  className="text-xs text-muted hover:text-slate-300"
+                  onClick={() => setSelectedForRun(new Set())}
+                >
+                  сбросить
+                </button>
+              )}
+            </div>
+          )}
           <ul className="space-y-1 max-h-72 overflow-y-auto">
             {items.length === 0 && (
               <li className="text-xs text-muted p-2">Нет сценариев — нажмите «Новый» и сохраните</li>
@@ -398,16 +462,24 @@ steps: []
             {items.map((s: ScenarioSummary) => (
               <li key={s.id} className="group">
                 <div
-                  className={`flex items-stretch gap-1 rounded-lg border ${
+                  className={`flex items-stretch gap-1.5 rounded-lg border px-1.5 ${
                     selectedId === s.id
                       ? 'border-accent/50 bg-accent/10'
                       : 'border-border bg-surface-3 hover:bg-border'
                   }`}
                 >
+                  <input
+                    type="checkbox"
+                    checked={selectedForRun.has(s.id)}
+                    onChange={() => toggleRunSelection(s.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-1 shrink-0 rounded border-border"
+                    title="Выбрать для «Запустить сейчас»"
+                  />
                   <button
                     type="button"
                     onClick={() => loadScenario(s.id)}
-                    className={`flex-1 min-w-0 text-left px-3 py-2 text-sm ${
+                    className={`flex-1 min-w-0 text-left px-2 py-2 text-sm ${
                       selectedId === s.id ? 'text-accent' : ''
                     }`}
                   >

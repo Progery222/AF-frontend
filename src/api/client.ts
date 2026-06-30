@@ -73,10 +73,11 @@ export const orch = {
   get: <T>(path: string, timeoutMs?: number) =>
     request<T>(ORCH_BASE, path, { method: 'GET', timeoutMs }),
 
-  post: <T>(path: string, body?: unknown) =>
+  post: <T>(path: string, body?: unknown, timeoutMs?: number) =>
     request<T>(ORCH_BASE, path, {
       method: 'POST',
       body: body != null ? JSON.stringify(body) : undefined,
+      timeoutMs,
     }),
 
   put: <T>(path: string, body?: unknown) =>
