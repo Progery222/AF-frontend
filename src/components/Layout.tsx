@@ -24,14 +24,14 @@ import { useLivePreviewTargets } from '@/hooks/useLivePreviewTargets'
 const NAV = [
   { to: '/', label: 'Дашборд', icon: LayoutDashboard },
   { to: '/phones', label: 'Телефоны', icon: Smartphone },
+  { to: '/scenarios', label: 'Сценарии', icon: CalendarClock },
+  { to: '/apps', label: 'Приложения', icon: AppWindow },
   { to: '/status', label: 'Статус', icon: Activity },
   { to: '/feed', label: 'Лента', icon: Rss },
   { to: '/social', label: 'Соцсети', icon: MessageCircle },
   { to: '/screen', label: 'Экран', icon: Monitor },
   { to: '/content', label: 'Контент', icon: FolderOpen },
   { to: '/video', label: 'Видео', icon: Film },
-  { to: '/scenarios', label: 'Сценарии', icon: CalendarClock },
-  { to: '/apps', label: 'Приложения', icon: AppWindow },
   { to: '/fsm', label: 'FSM', icon: GitBranch },
   { to: '/controls', label: 'Управление', icon: Gamepad2 },
 ]
@@ -48,13 +48,13 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-surface-2">
-      <div className="border-b border-border px-4 py-4">
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border bg-surface-2">
+      <div className="shrink-0 border-b border-border px-4 py-4">
         <h1 className="text-lg font-bold tracking-tight">AF Farm</h1>
         <p className="text-xs text-muted mt-0.5">Панель управления</p>
       </div>
 
-      <div className="px-3 py-3 border-b border-border space-y-2">
+      <div className="shrink-0 space-y-2 border-b border-border px-3 py-3">
         <PhoneSelector />
         <button
           type="button"
@@ -74,7 +74,7 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-2">
+      <nav className="min-h-0 flex-1 overflow-y-auto p-2">
         <ul className="space-y-0.5">
           {NAV.map(({ to, label, icon: Icon }) => {
             const active = location.pathname === to
@@ -97,7 +97,7 @@ export function Sidebar() {
         </ul>
       </nav>
 
-      <div className="border-t border-border p-2">
+      <div className="shrink-0 border-t border-border p-2">
         <button
           type="button"
           onClick={logout}

@@ -8,7 +8,7 @@ RUN apk add --no-cache nginx wget
 COPY --from=bulk-build /bulk-proxy /usr/local/bin/bulk-proxy
 COPY deploy/nginx.conf /etc/nginx/http.d/default.conf
 COPY deploy/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && mkdir -p /usr/share/nginx/html /run/nginx
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh && mkdir -p /usr/share/nginx/html /run/nginx
 ARG DIST_CACHEBUST=0
 RUN echo "dist cache bust: ${DIST_CACHEBUST}"
 COPY dist /usr/share/nginx/html
