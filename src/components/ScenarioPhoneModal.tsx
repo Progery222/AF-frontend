@@ -23,16 +23,22 @@ import { ActionButton } from '@/components/ActionButton'
 import { useConfirm } from '@/components/ConfirmDialog'
 import { useToast } from '@/components/Toast'
 import {
+  activeNetworkBeforeStep,
   buildYamlFromDraft,
+  CONTROL_STEP_CATALOG,
   createStep,
   emptyDraft,
-  parseDraftFromYaml,
+  loadDraftFromFiles,
+  networkLabel,
+  stepActionForRun,
   STEP_TYPE_CATALOG,
   stepIdAt,
   stepTypeTitle,
+  variablesYamlForSave,
   type BuilderStepType,
   type ScenarioDraft,
 } from '@/lib/scenarioBuilder'
+import { REF_SCREEN } from '@/lib/feedGestures'
 import { applySharedScenarioToPhones, SHARED_SCENARIO_SERIAL } from '@/lib/sharedScenarios'
 import { CollapsibleSection, EMPTY_VARIABLES, issueColor } from '@/pages/scenarios/shared'
 import type { ScenarioStepIssue, ScenarioSummary } from '@/types'
@@ -71,7 +77,7 @@ export function ScenarioPhoneModal({
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [draft, setDraft] = useState<ScenarioDraft>(() => emptyDraft(serial))
-  const [variablesYAML] = useState(EMPTY_VARIABLES)
+  const variablesYAML = useMemo(() => variablesYamlForSave(draft, EMPTY_VARIABLES), [draft])
   const [showYaml, setShowYaml] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
   const [addStepType, setAddStepType] = useState<BuilderStepType | ''>('')
@@ -128,7 +134,7 @@ export function ScenarioPhoneModal({
     try {
       const files = await api.getScenario(storageSerial, id)
       setSelectedId(id)
-      setDraft(parseDraftFromYaml(files.scenario_yaml, yamlSerial))
+      setDraft(loadDraftFromFiles(files, yamlSerial, EMPTY_VARIABLES))
       setStepIssues([])
       setGenWarnings([])
       setIsValid(null)
@@ -207,7 +213,7 @@ export function ScenarioPhoneModal({
       setIsValid(res.valid)
       setRunnable(res.runnable_by_scheduler ?? null)
       if (applyNormalized && res.normalized_scenario_yaml) {
-        setDraft(parseDraftFromYaml(res.normalized_scenario_yaml, yamlSerial))
+        setDraft(loadDraftFromFiles({ scenario_yaml: res.normalized_scenario_yaml, variables_yaml: variablesYAML }, yamlSerial, EMPTY_VARIABLES))
       }
       if (!res.valid) {
         toast(`Ошибки: ${(res.errors ?? []).join('; ') || 'см. step_issues'}`, 'error')
@@ -312,12 +318,10 @@ export function ScenarioPhoneModal({
   const runStepByIndex = async (index: number) => {
     const scenarioId = selectedId ?? draft.id
     const stepId = stepIdAt(draft, index)
+    const step = draft.steps[index]
+    if (!step) return
     const yaml = buildYamlFromDraft(yamlSerial, draft)
-    const blocks = yaml.split(/\n\s*-\s+id:/).slice(1)
-    const block = blocks[index]
-    if (!block) return
-    const action = block.match(/action:\s*(\S+)/)?.[1]
-    if (!action) return
+    const action = stepActionForRun(step.type)
 
     setRunningStep(stepId)
     try {
@@ -382,13 +386,14 @@ export function ScenarioPhoneModal({
         type="button"
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         aria-label="Закрыть"
-        onClick={onClose}
+        onMouseDown={onClose}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="scenario-modal-title"
         className="relative z-10 flex w-full max-w-lg max-h-[92vh] flex-col rounded-xl border border-border bg-surface-2 shadow-2xl"
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
           <div className="min-w-0 flex-1">
@@ -553,26 +558,6 @@ export function ScenarioPhoneModal({
                 className="mt-0.5 w-full rounded border border-border bg-surface-2 px-2 py-1 text-sm"
               />
             </label>
-
-            <div className="text-xs">
-              <span className="text-muted">Приложение</span>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {NETWORKS.map((n) => (
-                  <button
-                    key={n.id}
-                    type="button"
-                    onClick={() => patchDraft({ network: n.id })}
-                    className={`rounded border px-2 py-0.5 text-[11px] ${
-                      draft.network === n.id
-                        ? 'border-accent bg-accent/15 text-accent'
-                        : 'border-border text-slate-300'
-                    }`}
-                  >
-                    {n.label}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           <div className="space-y-1.5">
@@ -580,7 +565,9 @@ export function ScenarioPhoneModal({
             {draft.steps.length === 0 && (
               <p className="text-[11px] text-muted py-1">Нет шагов — добавьте первый ниже</p>
             )}
-            {draft.steps.map((step, index) => (
+            {draft.steps.map((step, index) => {
+              const activeApp = activeNetworkBeforeStep(draft.steps, index)
+              return (
               <div
                 key={step.uid}
                 className="rounded-lg border border-border bg-surface-3 px-2 py-1.5 space-y-1.5"
@@ -615,6 +602,28 @@ export function ScenarioPhoneModal({
                   </button>
                 </div>
 
+                {step.type === 'open_app' && (
+                  <div className="text-xs">
+                    <span className="text-muted">Приложение</span>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {NETWORKS.map((n) => (
+                        <button
+                          key={n.id}
+                          type="button"
+                          onClick={() => patchStep(step.uid, { network: n.id })}
+                          className={`rounded border px-2 py-0.5 text-[11px] ${
+                            step.network === n.id
+                              ? 'border-accent bg-accent/15 text-accent'
+                              : 'border-border text-slate-300'
+                          }`}
+                        >
+                          {n.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {step.type === 'scroll_feed' && (
                   <label className="flex items-center gap-2 text-xs">
                     <span className="text-muted">Секунд</span>
@@ -630,23 +639,27 @@ export function ScenarioPhoneModal({
                 )}
 
                 {step.type === 'search_feed' && (
-                  <div className="flex gap-1.5">
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-muted">
+                      {activeApp
+                        ? `В открытом приложении: ${networkLabel(activeApp)}`
+                        : 'Сначала добавьте шаг «Открыть приложение»'}
+                    </p>
                     <input
                       value={step.query}
                       onChange={(e) => patchStep(step.uid, { query: e.target.value })}
                       placeholder="Поисковый запрос"
-                      className="flex-1 min-w-0 rounded border border-border bg-surface-2 px-1.5 py-0.5 text-xs"
-                    />
-                    <input
-                      type="number"
-                      min={1}
-                      max={50}
-                      value={step.count}
-                      onChange={(e) => patchStep(step.uid, { count: Number(e.target.value) })}
-                      title="Роликов"
-                      className="w-12 rounded border border-border bg-surface-2 px-1 py-0.5 text-xs"
+                      className="w-full rounded border border-border bg-surface-2 px-1.5 py-0.5 text-xs"
                     />
                   </div>
+                )}
+
+                {step.type === 'close_app' && (
+                  <p className="text-[10px] text-muted">
+                    {activeApp
+                      ? `Закрыть ${networkLabel(activeApp)}`
+                      : 'Сначала добавьте шаг «Открыть приложение»'}
+                  </p>
                 )}
 
                 {step.type === 'wait' && (
@@ -663,6 +676,33 @@ export function ScenarioPhoneModal({
                   </label>
                 )}
 
+                {step.type === 'ctrl_tap_custom' && (
+                  <div className="flex gap-1.5">
+                    <label className="flex items-center gap-1 text-xs">
+                      <span className="text-muted">X</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={REF_SCREEN.width}
+                        value={step.tapRefX}
+                        onChange={(e) => patchStep(step.uid, { tapRefX: Number(e.target.value) })}
+                        className="w-16 rounded border border-border bg-surface-2 px-1 py-0.5 font-mono"
+                      />
+                    </label>
+                    <label className="flex items-center gap-1 text-xs">
+                      <span className="text-muted">Y</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={REF_SCREEN.height}
+                        value={step.tapRefY}
+                        onChange={(e) => patchStep(step.uid, { tapRefY: Number(e.target.value) })}
+                        className="w-16 rounded border border-border bg-surface-2 px-1 py-0.5 font-mono"
+                      />
+                    </label>
+                  </div>
+                )}
+
                 {!sharedMode && selectedId && (
                   <ActionButton
                     variant="ghost"
@@ -675,7 +715,7 @@ export function ScenarioPhoneModal({
                   </ActionButton>
                 )}
               </div>
-            ))}
+            )})}
 
             <div className="flex gap-1.5">
               <select
@@ -687,11 +727,20 @@ export function ScenarioPhoneModal({
                 className="flex-1 rounded-lg border border-border bg-surface-3 px-2 py-1.5 text-xs text-slate-300"
               >
                 <option value="">+ Добавить шаг…</option>
-                {STEP_TYPE_CATALOG.map((s) => (
-                  <option key={s.type} value={s.type}>
-                    {s.title}
-                  </option>
-                ))}
+                <optgroup label="Приложение">
+                  {STEP_TYPE_CATALOG.map((s) => (
+                    <option key={s.type} value={s.type}>
+                      {s.title}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Управление">
+                  {CONTROL_STEP_CATALOG.map((s) => (
+                    <option key={s.type} value={s.type}>
+                      {s.title}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
           </div>

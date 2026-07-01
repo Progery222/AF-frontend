@@ -1,22 +1,50 @@
 import type { SocialNetwork } from '@/api/behavior'
+import { DEFAULT_TAP_REF, REF_SCREEN } from '@/lib/feedGestures'
 import { TIKTOK_PACKAGES } from '@/pages/scenarios/shared'
 
-export type BuilderStepType = 'open_app' | 'scroll_feed' | 'search_feed' | 'wait' | 'close_app'
+export type BuilderStepType =
+  | 'open_app'
+  | 'scroll_feed'
+  | 'search_feed'
+  | 'wait'
+  | 'close_app'
+  | 'ctrl_home'
+  | 'ctrl_back'
+  | 'ctrl_recents'
+  | 'ctrl_power'
+  | 'ctrl_swipe_up'
+  | 'ctrl_swipe_down'
+  | 'ctrl_swipe_left'
+  | 'ctrl_swipe_right'
+  | 'ctrl_tap_center'
+  | 'ctrl_tap_custom'
+
+export function isControlStepType(type: BuilderStepType): boolean {
+  return type.startsWith('ctrl_')
+}
+
+function controlKindFromType(type: BuilderStepType): string {
+  return type.slice(5)
+}
 
 export interface BuilderStep {
   uid: string
   type: BuilderStepType
+  /** Только для open_app — какое приложение запускать */
+  network: SocialNetwork
   durationSec: number
   query: string
   count: number
   waitSec: number
+  /** Эталон 1080×1920 — для ctrl_tap_custom */
+  tapRefX: number
+  tapRefY: number
 }
 
 export interface ScenarioDraft {
   id: string
   name: string
   startAt: string
-  network: SocialNetwork
   steps: BuilderStep[]
 }
 
@@ -29,13 +57,30 @@ export interface StepTypeDef {
 export const STEP_TYPE_CATALOG: StepTypeDef[] = [
   { type: 'open_app', title: 'Открыть приложение', description: 'Запуск TikTok / Instagram / YouTube' },
   { type: 'scroll_feed', title: 'Скролл ленты', description: 'Прогрев ленты, длительность в секундах' },
-  { type: 'search_feed', title: 'Поиск', description: 'Поисковый запрос и число роликов' },
+  { type: 'search_feed', title: 'Поиск', description: 'Поисковый запрос и открытие первого результата' },
   { type: 'wait', title: 'Пауза', description: 'Ожидание между шагами' },
   { type: 'close_app', title: 'Закрыть приложение', description: 'Выход из приложения' },
 ]
 
+export const CONTROL_STEP_CATALOG: StepTypeDef[] = [
+  { type: 'ctrl_home', title: 'Домой', description: 'Системная кнопка Home' },
+  { type: 'ctrl_back', title: 'Назад', description: 'Системная кнопка Back' },
+  { type: 'ctrl_recents', title: 'Последние', description: 'Список недавних приложений' },
+  { type: 'ctrl_power', title: 'Power', description: 'Кнопка питания' },
+  { type: 'ctrl_swipe_up', title: 'Следующий пост', description: 'Свайп вверх (как в ленте)' },
+  { type: 'ctrl_swipe_down', title: 'Предыдущий пост', description: 'Свайп вниз' },
+  { type: 'ctrl_tap_center', title: 'Тап центр', description: 'Тап по центру экрана' },
+  { type: 'ctrl_swipe_left', title: 'Свайп влево', description: 'Горизонтальный свайп влево' },
+  { type: 'ctrl_swipe_right', title: 'Свайп вправо', description: 'Горизонтальный свайп вправо' },
+  { type: 'ctrl_tap_custom', title: 'Тап по координатам', description: `Координаты эталона ${REF_SCREEN.width}×${REF_SCREEN.height}` },
+]
+
 export function stepTypeTitle(type: BuilderStepType): string {
-  return STEP_TYPE_CATALOG.find((s) => s.type === type)?.title ?? type
+  return (
+    STEP_TYPE_CATALOG.find((s) => s.type === type)?.title ??
+    CONTROL_STEP_CATALOG.find((s) => s.type === type)?.title ??
+    type
+  )
 }
 
 export function newStepUid(): string {
@@ -46,11 +91,42 @@ export function createStep(type: BuilderStepType): BuilderStep {
   return {
     uid: newStepUid(),
     type,
+    network: 'tiktok',
     durationSec: 60,
     query: '',
     count: 5,
     waitSec: 4,
+    tapRefX: DEFAULT_TAP_REF.x,
+    tapRefY: DEFAULT_TAP_REF.y,
   }
+}
+
+export function stepActionForRun(type: BuilderStepType): string {
+  if (isControlStepType(type)) return 'device_control'
+  const map: Record<string, string> = {
+    open_app: 'open_app',
+    scroll_feed: 'warmup_feed',
+    search_feed: 'social_action',
+    wait: 'wait',
+    close_app: 'close_app',
+  }
+  return map[type] ?? type
+}
+
+export function networkLabel(network: SocialNetwork): string {
+  if (network === 'instagram') return 'Instagram'
+  if (network === 'youtube') return 'YouTube'
+  return 'TikTok'
+}
+
+/** Какое приложение открыто перед шагом (после последнего open_app, до close_app). */
+export function activeNetworkBeforeStep(steps: BuilderStep[], stepIndex: number): SocialNetwork | null {
+  for (let i = stepIndex - 1; i >= 0; i--) {
+    const s = steps[i]
+    if (s.type === 'open_app') return s.network
+    if (s.type === 'close_app') return null
+  }
+  return null
 }
 
 export function emptyDraft(_serial: string): ScenarioDraft {
@@ -58,9 +134,15 @@ export function emptyDraft(_serial: string): ScenarioDraft {
     id: `scenario-${Date.now().toString(36)}`,
     name: 'Новый сценарий',
     startAt: '10:00',
-    network: 'tiktok',
     steps: [],
   }
+}
+
+function networkFromPackage(pkg: string | undefined): SocialNetwork {
+  if (!pkg) return 'tiktok'
+  if (pkg.includes('instagram')) return 'instagram'
+  if (pkg.includes('youtube')) return 'youtube'
+  return 'tiktok'
 }
 
 function packageForNetwork(network: SocialNetwork): string {
@@ -70,14 +152,16 @@ function packageForNetwork(network: SocialNetwork): string {
 }
 
 function defaultStepId(type: BuilderStepType, index: number): string {
-  const base: Record<BuilderStepType, string> = {
+  const base = isControlStepType(type) ? type : type
+  const ids: Record<string, string> = {
     open_app: 'open_app',
     scroll_feed: 'scroll_feed',
     search_feed: 'search_feed',
     wait: 'wait',
     close_app: 'close_app',
   }
-  return index > 0 ? `${base[type]}_${index + 1}` : base[type]
+  const id = ids[type] ?? base
+  return index > 0 ? `${id}_${index + 1}` : id
 }
 
 export function stepIdAt(draft: ScenarioDraft, index: number): string {
@@ -92,7 +176,6 @@ function yamlQuote(value: string): string {
 }
 
 export function buildYamlFromDraft(serial: string, draft: ScenarioDraft): string {
-  const pkg = packageForNetwork(draft.network)
   const now = new Date()
   const y = now.getFullYear()
   const m = String(now.getMonth() + 1).padStart(2, '0')
@@ -103,6 +186,7 @@ export function buildYamlFromDraft(serial: string, draft: ScenarioDraft): string
   const validUntil = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}T23:59:59+03:00`
 
   const stepLines: string[] = []
+  let openNetwork: SocialNetwork | null = null
 
   draft.steps.forEach((step, index) => {
     const id = defaultStepId(step.type, index)
@@ -117,9 +201,12 @@ export function buildYamlFromDraft(serial: string, draft: ScenarioDraft): string
     }
 
     switch (step.type) {
-      case 'open_app':
+      case 'open_app': {
+        openNetwork = step.network
+        const pkg = packageForNetwork(step.network)
         lines.push('    action: open_app', '    params:', `      package: ${pkg}`)
         break
+      }
       case 'scroll_feed':
         lines.push(
           '    action: warmup_feed',
@@ -130,24 +217,39 @@ export function buildYamlFromDraft(serial: string, draft: ScenarioDraft): string
           '      skip_launch: "true"',
         )
         break
-      case 'search_feed':
+      case 'search_feed': {
+        const network = openNetwork ?? activeNetworkBeforeStep(draft.steps, index) ?? 'tiktok'
         lines.push(
           '    action: social_action',
           '    params:',
-          `      network: ${draft.network}`,
+          `      network: ${network}`,
           '      behavior: search-feed',
           `      query: ${yamlQuote(step.query.trim() || 'Football')}`,
-          `      count: "${step.count}"`,
           '      open_first_only: "true"',
           '      skip_launch: "true"',
         )
         break
+      }
       case 'wait':
         lines.push('    action: wait', '    params:', `      duration_sec: "${step.waitSec}"`)
         break
-      case 'close_app':
+      case 'close_app': {
+        const network = openNetwork ?? activeNetworkBeforeStep(draft.steps, index) ?? 'tiktok'
+        const pkg = packageForNetwork(network)
         lines.push('    action: close_app', '    params:', `      package: ${pkg}`)
+        openNetwork = null
         break
+      }
+      default: {
+        if (!isControlStepType(step.type)) break
+        const kind = controlKindFromType(step.type)
+        const ctrlLines = ['    action: device_control', '    params:', `      kind: ${kind}`]
+        if (kind === 'tap_custom') {
+          ctrlLines.push(`      ref_x: "${step.tapRefX}"`, `      ref_y: "${step.tapRefY}"`)
+        }
+        lines.push(...ctrlLines)
+        break
+      }
     }
     stepLines.push(lines.join('\n'))
   })
@@ -192,62 +294,144 @@ function parseParams(block: string): Record<string, string> {
   return params
 }
 
+function parseStepsSection(yaml: string): string[] {
+  if (/^steps:\s*\[\s*\]/m.test(yaml)) return []
+
+  const header = yaml.match(/^steps:\s*\n/m)
+  if (!header || header.index == null) return []
+
+  const start = header.index + header[0].length
+  const rest = yaml.slice(start)
+  const nextTopLevel = rest.match(/\n^[a-zA-Z_][\w-]*:/m)
+  const section = (nextTopLevel?.index != null ? rest.slice(0, nextTopLevel.index) : rest).trim()
+  if (!section || section === '[]') return []
+
+  return section
+    .split(/\n(?=\s*-\s+)/)
+    .map((part) => part.replace(/^\s*-\s*/, '').trim())
+    .filter(Boolean)
+}
+
+function parseStepBlock(block: string): BuilderStep | null {
+  const action = parseScalar(block, 'action') ?? ''
+  const params = parseParams(block)
+
+  if (action === 'open_app') {
+    const step = createStep('open_app')
+    step.network = networkFromPackage(params.package)
+    return step
+  }
+  if (action === 'warmup_feed') {
+    const step = createStep('scroll_feed')
+    step.durationSec = Number(params.duration_sec) || 60
+    return step
+  }
+  if (action === 'social_action' && params.behavior === 'search-feed') {
+    const step = createStep('search_feed')
+    step.query = params.query ?? ''
+    step.count = Number(params.count) || 5
+    return step
+  }
+  if (action === 'wait') {
+    const step = createStep('wait')
+    step.waitSec = Number(params.duration_sec) || 4
+    return step
+  }
+  if (action === 'close_app') {
+    return { ...createStep('close_app') }
+  }
+  if (action === 'device_control') {
+    const kind = params.kind ?? 'tap_center'
+    const type = (`ctrl_${kind}` as BuilderStepType)
+    const step = createStep(type)
+    if (kind === 'tap_custom') {
+      step.tapRefX = Number(params.ref_x) || DEFAULT_TAP_REF.x
+      step.tapRefY = Number(params.ref_y) || DEFAULT_TAP_REF.y
+    }
+    return step
+  }
+  return null
+}
+
+export const BUILDER_DRAFT_MARKER = '# builder-draft\n'
+
+export function serializeVariablesWithDraft(draft: ScenarioDraft, base = ''): string {
+  const prefix = base.trim() ? `${base.trim()}\n` : ''
+  return `${prefix}${BUILDER_DRAFT_MARKER}${JSON.stringify(draft)}`
+}
+
+export function loadDraftFromFiles(
+  files: { scenario_yaml: string; variables_yaml?: string },
+  serial: string,
+  _defaultVariables: string,
+): ScenarioDraft {
+  const fromYaml = parseDraftFromYaml(files.scenario_yaml, serial)
+
+  const jsonPart = files.variables_yaml?.split(BUILDER_DRAFT_MARKER)[1]?.trim()
+  if (!jsonPart) return fromYaml
+
+  try {
+    const parsed = JSON.parse(jsonPart) as ScenarioDraft
+    const fromJson: ScenarioDraft = {
+      ...emptyDraft(serial),
+      ...parsed,
+      id: parsed.id || fromYaml.id,
+      steps: (parsed.steps ?? []).map((step) => {
+        const legacyNetwork = (parsed as ScenarioDraft & { network?: SocialNetwork }).network ?? 'tiktok'
+        return {
+          ...createStep(step.type),
+          ...step,
+          uid: step.uid || newStepUid(),
+          network: step.type === 'open_app' ? (step.network ?? legacyNetwork) : step.network ?? 'tiktok',
+        }
+      }),
+    }
+    // builder-draft в variables часто теряется при сохранении на бэкенде — YAML надёжнее
+    if (fromYaml.steps.length > fromJson.steps.length) return fromYaml
+    return fromJson
+  } catch {
+    return fromYaml
+  }
+}
+
+export function variablesYamlForSave(draft: ScenarioDraft, defaultVariables: string): string {
+  return serializeVariablesWithDraft(draft, defaultVariables)
+}
+
 export function parseDraftFromYaml(yaml: string, serial: string): ScenarioDraft {
   const id = parseScalar(yaml, 'id') ?? emptyDraft(serial).id
   const name = parseScalar(yaml, 'name') ?? 'Сценарий'
-  const blocks = yaml.split(/\n\s*-\s+id:/)
   const draft = emptyDraft(serial)
   draft.id = id
   draft.name = name
 
-  if (blocks.length <= 1) return draft
+  const blocks = parseStepsSection(yaml)
+  if (blocks.length === 0) return draft
 
   const steps: BuilderStep[] = []
   let firstAt: string | null = null
-  let network: SocialNetwork = 'tiktok'
+  let fallbackNetwork: SocialNetwork = 'tiktok'
 
-  blocks.slice(1).forEach((block) => {
-    const action = parseScalar(block, 'action') ?? ''
-    const params = parseParams(block)
+  for (const block of blocks) {
     const at = parseScalar(block, 'at')
     if (at && !firstAt) firstAt = at
 
+    const params = parseParams(block)
     if (params.network === 'instagram' || params.network === 'youtube' || params.network === 'tiktok') {
-      network = params.network
+      fallbackNetwork = params.network
     }
-    if (params.package?.includes('instagram')) network = 'instagram'
-    if (params.package?.includes('youtube')) network = 'youtube'
+    if (params.package?.includes('instagram')) fallbackNetwork = 'instagram'
+    if (params.package?.includes('youtube')) fallbackNetwork = 'youtube'
 
-    if (action === 'open_app') {
-      steps.push({ ...createStep('open_app') })
-      return
+    const step = parseStepBlock(block)
+    if (!step) continue
+    if (step.type === 'open_app' && !params.package) {
+      step.network = fallbackNetwork
     }
-    if (action === 'warmup_feed') {
-      const step = createStep('scroll_feed')
-      step.durationSec = Number(params.duration_sec) || 60
-      steps.push(step)
-      return
-    }
-    if (action === 'social_action' && params.behavior === 'search-feed') {
-      const step = createStep('search_feed')
-      step.query = params.query ?? ''
-      step.count = Number(params.count) || 5
-      steps.push(step)
-      return
-    }
-    if (action === 'wait') {
-      const step = createStep('wait')
-      step.waitSec = Number(params.duration_sec) || 4
-      steps.push(step)
-      return
-    }
-    if (action === 'close_app') {
-      steps.push({ ...createStep('close_app') })
-    }
-  })
+    steps.push(step)
+  }
 
   draft.startAt = firstAt ?? '10:00'
-  draft.network = network
   draft.steps = steps
   return draft
 }
