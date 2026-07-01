@@ -111,7 +111,11 @@ export const api = {
   },
 
   generateScenario: (serial: string, prompt: string) =>
-    orch.post<ScenarioGenerateResponse>(phonePath(serial, '/scenarios/generate'), { prompt }),
+    orch.post<ScenarioGenerateResponse>(
+      phonePath(serial, '/scenarios/generate'),
+      { prompt },
+      10 * 60 * 1000,
+    ),
 
   validateScenario: (serial: string, scenarioYaml: string, variablesYaml: string, normalize = true) =>
     orch.post<ScenarioValidateResponse>(phonePath(serial, '/scenarios/validate'), {
