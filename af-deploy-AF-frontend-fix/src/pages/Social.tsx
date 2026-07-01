@@ -35,7 +35,6 @@ const FINAL_STATUSES: JobStatus[] = ['done', 'failed']
 interface JobRow {
   key: string
   serial: string
-  standSeqNumber?: number | null
   label: string
   jobId?: string
   status: JobStatus | 'request_error'
@@ -64,7 +63,7 @@ function compactJSON(value?: Record<string, unknown>) {
 }
 
 export function SocialPage() {
-  const { hasSelection, label, isMulti, serials, targetPhones } = useTargetPhones()
+  const { hasSelection, label, isMulti, serials } = useTargetPhones()
   const { toast } = useToast()
   const [network, setNetwork] = useState<SocialNetwork>('tiktok')
   const [tab, setTab] = useState('search')
@@ -120,10 +119,9 @@ export function SocialPage() {
     }
     setLoading(id)
     const runKey = `${Date.now()}-${id}`
-    const rows = targetPhones.map((phone) => ({
-      key: `${runKey}-${phone.serial}`,
-      serial: phone.serial,
-      standSeqNumber: phone.stand_seq_number,
+    const rows = serials.map((serial) => ({
+      key: `${runKey}-${serial}`,
+      serial,
       label: actionLabel,
       status: 'pending' as const,
     }))
@@ -410,16 +408,7 @@ export function SocialPage() {
               <tbody>
                 {jobs.map((job) => (
                   <tr key={job.key} className="border-t border-border">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {job.standSeqNumber != null && (
-                          <span className="rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-[11px] text-accent">
-                            № {job.standSeqNumber}
-                          </span>
-                        )}
-                        <span className="font-mono text-xs">{job.serial}</span>
-                      </div>
-                    </td>
+                    <td className="px-4 py-3 font-mono text-xs">{job.serial}</td>
                     <td className="px-4 py-3">{job.label}</td>
                     <td className="px-4 py-3">
                       <span

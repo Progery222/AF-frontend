@@ -1,0 +1,199 @@
+﻿diff --git a/src/api/behavior.ts b/src/api/behavior.ts
+index 035437e..d98e4a8 100644
+--- a/src/api/behavior.ts
++++ b/src/api/behavior.ts
+@@ -9,6 +9,8 @@ export type SocialAction =
+   | 'search-feed'
+   | 'chat'
+   | 'comment'
++  | 'like'
++  | 'repost'
+   | 'scrape-profile'
+ 
+ export type JobStatus = 'pending' | 'running' | 'done' | 'failed'
+@@ -62,5 +64,11 @@ export const behaviorApi = {
+   comment: (network: SocialNetwork, body: SocialActionRequest) =>
+     behavior.post<BehaviorJob>(socialPath(network, 'comment'), body),
+ 
++  like: (network: SocialNetwork, serial: string) =>
++    behavior.post<BehaviorJob>(socialPath(network, 'like'), { serial }),
++
++  repost: (network: SocialNetwork, serial: string) =>
++    behavior.post<BehaviorJob>(socialPath(network, 'repost'), { serial }),
++
+   getJob: (id: string) => behavior.get<BehaviorJob>(`/jobs/${encodeURIComponent(id)}`),
+ }
+diff --git a/src/pages/Social.tsx b/src/pages/Social.tsx
+index b697617..0ce2eaf 100644
+--- a/src/pages/Social.tsx
++++ b/src/pages/Social.tsx
+@@ -17,9 +17,11 @@ import {
+   MessageSquareText,
+   Play,
+   RefreshCcw,
++  RotateCcw,
+   Search,
+   Share2,
+   SquareStack,
++  ThumbsUp,
+ } from 'lucide-react'
+ 
+ const NETWORKS: { id: SocialNetwork; label: string }[] = [
+@@ -31,6 +33,24 @@ const NETWORKS: { id: SocialNetwork; label: string }[] = [
+ const TABS = ['search', 'profile', 'inbox', 'reels', 'shorts', 'fyp']
+ const FINAL_STATUSES: JobStatus[] = ['done', 'failed']
+ 
++// Лимит одновременных соц-действий: бережём phone-observer от перегрузки при
++// массовом запуске. Настраивается через VITE_SOCIAL_MAX_CONCURRENCY.
++const SOCIAL_MAX_CONCURRENCY = Number(import.meta.env.VITE_SOCIAL_MAX_CONCURRENCY ?? 4)
++
++// runPool — выполняет worker над items не более limit штук одновременно.
++async function runPool<T>(items: T[], limit: number, worker: (item: T) => Promise<void>) {
++  let i = 0
++  const run = async () => {
++    while (i < items.length) {
++      const idx = i
++      i += 1
++      await worker(items[idx])
++    }
++  }
++  const n = Math.max(1, Math.min(limit, items.length))
++  await Promise.all(Array.from({ length: n }, run))
++}
++
+ interface JobRow {
+   key: string
+   serial: string
+@@ -39,6 +59,7 @@ interface JobRow {
+   status: JobStatus | 'request_error'
+   error?: string
+   result?: Record<string, unknown>
++  runner?: (serial: string) => Promise<BehaviorJob>
+ }
+ 
+ function statusText(status: JobRow['status']) {
+@@ -123,26 +144,53 @@ export function SocialPage() {
+       serial,
+       label: actionLabel,
+       status: 'pending' as const,
++      runner,
+     }))
+     setJobs((prev) => [...rows, ...prev].slice(0, 30))
+ 
+     try {
+-      await Promise.all(
+-        rows.map(async (row) => {
+-          try {
+-            const job = await runner(row.serial)
+-            updateJob(row.key, fromJob(job))
+-          } catch (e) {
+-            updateJob(row.key, { status: 'request_error', error: (e as Error).message })
+-          }
+-        }),
+-      )
++      await runPool(rows, SOCIAL_MAX_CONCURRENCY, async (row) => {
++        try {
++          const job = await runner(row.serial)
++          updateJob(row.key, fromJob(job))
++        } catch (e) {
++          updateJob(row.key, { status: 'request_error', error: (e as Error).message })
++        }
++      })
+       toast(`${actionLabel}: отправлено на ${rows.length}`, 'success')
+     } finally {
+       setLoading(null)
+     }
+   }
+ 
++  const failedRows = useMemo(
++    () => jobs.filter((row) => (row.status === 'failed' || row.status === 'request_error') && row.runner),
++    [jobs],
++  )
++
++  const retryFailed = async () => {
++    if (failedRows.length === 0) {
++      toast('Нет упавших задач для повтора', 'error')
++      return
++    }
++    setLoading('retry')
++    const rows = failedRows
++    try {
++      await runPool(rows, SOCIAL_MAX_CONCURRENCY, async (row) => {
++        updateJob(row.key, { status: 'pending', error: undefined, jobId: undefined, result: undefined })
++        try {
++          const job = await row.runner!(row.serial)
++          updateJob(row.key, fromJob(job))
++        } catch (e) {
++          updateJob(row.key, { status: 'request_error', error: (e as Error).message })
++        }
++      })
++      toast(`Повтор: ${rows.length}`, 'success')
++    } finally {
++      setLoading(null)
++    }
++  }
++
+   const commonBody = (serial: string) => ({
+     serial,
+     count,
+@@ -226,10 +274,22 @@ export function SocialPage() {
+               Листать / лайкать
+             </ActionButton>
+ 
++            <ActionButton
++              icon={<ThumbsUp className="h-4 w-4" />}
++              loading={loading === 'like'}
++              onClick={() =>
++                startJobs('like', 'Лайк текущего', (serial) => behaviorApi.like(network, serial))
++              }
++            >
++              Лайк текущего
++            </ActionButton>
++
+             <ActionButton
+               icon={<Share2 className="h-4 w-4" />}
+-              disabled
+-              title="В behavior-engine пока нет сценария repost/share"
++              loading={loading === 'repost'}
++              onClick={() =>
++                startJobs('repost', 'Репост', (serial) => behaviorApi.repost(network, serial))
++              }
+             >
+               Репост
+             </ActionButton>
+@@ -369,14 +429,27 @@ export function SocialPage() {
+       <section className="rounded-lg border border-border bg-surface-2">
+         <div className="flex items-center justify-between border-b border-border px-4 py-3">
+           <div className="font-medium">Jobs</div>
+-          <ActionButton
+-            variant="ghost"
+-            className="px-3 py-1.5"
+-            icon={<RefreshCcw className="h-4 w-4" />}
+-            onClick={() => setJobs([])}
+-          >
+-            Очистить
+-          </ActionButton>
++          <div className="flex items-center gap-2">
++            {failedRows.length > 0 && (
++              <ActionButton
++                variant="ghost"
++                className="px-3 py-1.5"
++                icon={<RotateCcw className="h-4 w-4" />}
++                loading={loading === 'retry'}
++                onClick={retryFailed}
++              >
++                Повторить упавшие ({failedRows.length})
++              </ActionButton>
++            )}
++            <ActionButton
++              variant="ghost"
++              className="px-3 py-1.5"
++              icon={<RefreshCcw className="h-4 w-4" />}
++              onClick={() => setJobs([])}
++            >
++              Очистить
++            </ActionButton>
++          </div>
+         </div>
+         {jobs.length === 0 ? (
+           <div className="px-4 py-10 text-center text-sm text-muted">

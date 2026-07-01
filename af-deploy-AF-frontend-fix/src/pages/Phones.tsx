@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { api } from '@/api/orchestrator'
 import { PageHeader } from '@/components/RequirePhone'
 import { PhoneCard } from '@/components/PhoneCard'
@@ -7,16 +7,13 @@ import { ActionButton } from '@/components/ActionButton'
 import { usePhoneStore } from '@/store'
 import { useToast } from '@/components/Toast'
 import { sortPhonesByStandSeq, filterPhonesByStandSeqQuery, filterProductionPhones } from '@/lib/phoneSort'
-import { executeBulk, formatBulkToast } from '@/lib/runOnPhones'
-import { Hash, RefreshCw, Search, Users, X, XCircle } from 'lucide-react'
+import { RefreshCw, Search, Users, X, XCircle } from 'lucide-react'
 
 const PHONE_GRID =
   'grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
 
 export function PhonesPage() {
   const [standSeqQuery, setStandSeqQuery] = useState('')
-  const [syncingStandSeq, setSyncingStandSeq] = useState(false)
-  const queryClient = useQueryClient()
   const toggleSerial = usePhoneStore((s) => s.toggleSerial)
   const setSelectAll = usePhoneStore((s) => s.setSelectAll)
   const clearSelection = usePhoneStore((s) => s.clearSelection)
@@ -39,11 +36,6 @@ export function PhonesPage() {
     [allPhones, standSeqQuery],
   )
   const allSerials = useMemo(() => allPhones.map((p) => p.serial), [allPhones])
-  const selectedForAction = useMemo(() => {
-    if (selectAll) return allSerials
-    const available = new Set(allSerials)
-    return selectedSerials.filter((serial) => available.has(serial))
-  }, [allSerials, selectAll, selectedSerials])
   const total = data?.total ?? allPhones.length
   const isFiltering = standSeqQuery.trim().length > 0
 
@@ -63,27 +55,6 @@ export function PhonesPage() {
     if (allPhones.length === 0) return
     setSelectAll(true)
     toast(`Выбраны все телефоны (${allPhones.length})`, 'success')
-  }
-
-  const handleSyncStandSeqFromHome = async () => {
-    if (selectedForAction.length === 0) {
-      toast('Нет выбранных телефонов для считывания номера', 'error')
-      return
-    }
-    setSyncingStandSeq(true)
-    try {
-      const result = await executeBulk(selectedForAction, {
-        method: 'POST',
-        suffix: '/stand-seq/sync-from-home',
-      })
-      await queryClient.invalidateQueries({ queryKey: ['phones'] })
-      const { message, type } = formatBulkToast('Считан № с экрана', result)
-      toast(message, type)
-    } catch (e) {
-      toast((e as Error).message, 'error')
-    } finally {
-      setSyncingStandSeq(false)
-    }
   }
 
   return (
@@ -130,16 +101,6 @@ export function PhonesPage() {
         >
           Выбрать все
         </ActionButton>
-        {hasSelection && (
-          <ActionButton
-            icon={<Hash className="h-4 w-4" />}
-            onClick={handleSyncStandSeqFromHome}
-            loading={syncingStandSeq}
-            disabled={syncingStandSeq || selectedForAction.length === 0}
-          >
-            Считать № с экрана
-          </ActionButton>
-        )}
         {hasSelection && (
           <ActionButton
             variant="ghost"

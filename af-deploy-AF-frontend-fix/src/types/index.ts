@@ -55,15 +55,6 @@ export interface ScreenResult {
   resolution?: { width: number; height: number }
 }
 
-export interface StandSeqSyncResult {
-  serial: string
-  stand_seq_number: number
-  source: string
-  confidence: number
-  minio_key?: string
-  screenshot_url?: string
-}
-
 export interface ContentItem {
   content_id: string
   object_key: string

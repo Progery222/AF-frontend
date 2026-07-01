@@ -16,7 +16,6 @@ import type {
   ScenarioStatus,
   ScenarioValidateResponse,
   ScreenResult,
-  StandSeqSyncResult,
   VideoJob,
 } from '@/types'
 import { orch, phonePath, prov } from './client'
@@ -32,9 +31,6 @@ export const api = {
 
   setStandSeqNumber: (serial: string, standSeqNumber: number | null) =>
     orch.patch<Phone>(phonePath(serial, '/stand-seq'), { stand_seq_number: standSeqNumber }),
-
-  syncStandSeqFromHome: (serial: string) =>
-    orch.post<StandSeqSyncResult>(phonePath(serial, '/stand-seq/sync-from-home'), undefined, 60_000),
 
   observe: (serial: string) =>
     orch.get<ScreenResult>(phonePath(serial, '/observe?timeout_sec=30'), 45_000),
